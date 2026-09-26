@@ -43,8 +43,9 @@ The deliverable is four files and one CI step:
      certification. Offer R1/R2 for prototypes or internal tooling. The user can name a
      level directly ("set this repo up at Strict").
    - **`max_tests`.** If a `test-audit` exists, use its certified minimum plus 30–50%
-     headroom. Otherwise use today's count as a ceiling (it never grows), and plan an audit
-     to ratchet it down.
+     headroom. Otherwise use today's count plus one change's worth of new tests (the
+     `adopt.py` default), so a good test for a real gap is not blocked on day one. Then plan an
+     audit to ratchet it down.
    - **`max_suite_seconds`.** Aim for a PR tier under 5–10 minutes end to end.
    - **Mutation thresholds per tier.** The defaults are 0.80 critical and 0.60 standard,
      with glue ungated.

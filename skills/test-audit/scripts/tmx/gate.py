@@ -348,6 +348,18 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
         tier_scores = {}
         triage_path = os.path.join(root, policy.get("assurance", {}).get("triage_file", "testing/survivors.json"))
         triage = json.load(open(triage_path)) if os.path.exists(triage_path) else {}
+        # A PR may triage its own new survivors, but at R4+ an entry the PR adds counts only with a
+        # listed approver: otherwise a change could declare its own weaknesses harmless.
+        if base:
+            rel_t = os.path.relpath(triage_path, root)
+            base_t = _git(root, "show", f"{base}:{rel_t}")
+            try:
+                base_triage = json.loads(base_t) if base_t.strip() else {}
+            except ValueError:
+                base_triage = {}
+            self_added = {k for k in triage if k not in base_triage}
+        else:
+            self_added = set()
         default_level = rigor.highest([policy.get("rigor", "R3")])
         for tier in tiers:  # first matching tier wins, so list critical tiers first
             mids = [k for k, mu in m["mutants"].items()
@@ -373,6 +385,10 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
                 if TR["triage_survivors"] and in_change and mu.get("status") in ("survived", "no_coverage"):
                     key = mu.get("key") or f"{mu['file']}:{mu['line']}:{mu.get('op')}:{mu.get('desc')}"
                     t = triage.get(key)
+                    if t and key in self_added and not approvers:
+                        add("III", "triage_needs_approval", f"{t_level}: {key} was triaged as equivalent in this change; "
+                                                           "a listed approver must approve it")
+                        continue
                     if not t or t.get("verdict") != "equivalent" or not t.get("reason"):
                         add("III", "triage_survivors", f"{t_level}: surviving mutant {key} is neither killed nor "
                                                       f"triaged as equivalent with a reason in {os.path.relpath(triage_path, root)}")

@@ -93,7 +93,9 @@
         "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
         "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
         "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
-        "Did not modify src/ or test/"
+        "Did not modify src/ or test/",
+        "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+        "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut"
       ]
     }
   ]

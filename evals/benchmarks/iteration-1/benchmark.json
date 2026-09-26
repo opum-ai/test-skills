@@ -1,0 +1,2030 @@
+{
+  "metadata": {
+    "skill_name": "test-skills",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "claude-opus-5-5",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-09-26T18:11:49Z",
+    "evals_run": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 983.8,
+        "tokens": 139164,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+          "passed": true,
+          "evidence": "TEST-CONSTITUTION.md, 13 articles. Art. II budget. Art. V marginal-value admission. Art. IX Red-Green-Refactor-Prune: delete scaffolding and catching tests. Art. VI behavior, not implementation. Art. XI flakiness: quarantine, no retry-until-green. Art. XII certified deletion via a probation tier. Amendment log included."
+        },
+        {
+          "text": "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+          "passed": true,
+          "evidence": "test-policy.toml: max_tests=175, max_new_tests_per_pr=8, max_suite_seconds=30, max_mocks_per_test=3, tier min_mutation_score 0.90 and 0.60, quarantine_days=14, max_skipped=3. tests.yml passes it to the gate: `tmx.py gate --policy test-policy.toml` in the pr, main and nightly jobs."
+        },
+        {
+          "text": "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+          "passed": true,
+          "evidence": "The critical tier in test-policy.toml covers shop/money.py, pricing.py, discounts.py, tax.py and cart.py: rigor=\"R4\", min_mutation_score=0.90. Everything else is standard at 0.60. The gate output shows the tiers applied: critical 218/220 at R4, standard 58/60 at R3."
+        },
+        {
+          "text": "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+          "passed": true,
+          "evidence": "Constitution Art. III says 'Adequacy is risk-tiered and measured by fault detection: the mutation score... Line coverage is a diagnostic... never a target.' Per-tier mutation floors are in the TOML, and there is no coverage percentage."
+        },
+        {
+          "text": "A CI job enforces the policy on pull requests (not only documentation)",
+          "passed": true,
+          "evidence": "The `pr` job in .github/workflows/tests.yml runs on pull_request and pull_request_review. It runs pytest once, builds the kill matrix with `tmx.py collect-pytest`, then runs `tmx.py gate --policy test-policy.toml --junit report.xml --matrix .tmx/matrix.json --base $BASE`."
+        },
+        {
+          "text": "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+          "passed": true,
+          "evidence": "CLAUDE.md and AGENTS.md (identical) name the money files, the R4 rules and the gate commands, and contain the managed 7-rule 'Testing rules' block. .claude/settings.json adds a PostToolUse hook (tools/tmx-hooks/hook_test_edit.py) that checks each test file as it is written."
+        },
+        {
+          "text": "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+          "passed": true,
+          "evidence": "Run in a scratch copy with the venv Python. PR-tier pytest: 172 passed, 3 skipped. Kill matrix: 280 mutants, 98.6%. Main gate: PASS (175 tests, growth 0). check_baseline.py: 'baseline current: 175 tests'. Simulated PR (README edit) with --base main: PASS, policy_source=base. Nightly gate with --history 20: PASS, critical 220/222. max_tests=175 equals today's count; max_skipped=3 matches today's 3 skips. objective.json: pr_suite_still_passes=true, src_unchanged=true."
+        },
+        {
+          "text": "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach",
+          "passed": true,
+          "evidence": "The old ci.yml retry loop is deleted: the diff shows ci.yml -30 lines, replaced by tests.yml. The only 'retry' matches in tests.yml are a comment and a step name, and objective ci_has_retry_loop=false. Quarantine: conftest marks tests listed in .test-quarantine.json, the PR tier deselects `quarantine`, the nightly job runs them, and quarantine_days=14. Caveat: the 3 existing 'flaky, fix later' skips were kept as max_skipped=3 debt rather than moved into quarantine."
+        }
+      ],
+      "notes": [
+        "CI not run on real GitHub Actions",
+        "approvers=[] means any approving reviewer counts; CODEOWNERS and branch protection not set",
+        "2 money.py survivors triaged as equivalent by the agent",
+        "3 skipped tests allowed as adoption-day debt (max_skipped=3)"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.88,
+        "passed": 7,
+        "failed": 1,
+        "total": 8,
+        "time_seconds": 999.4,
+        "tokens": 144279,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+          "passed": true,
+          "evidence": "TEST-CONSTITUTION.md has Articles I-XIII plus 'Tiers in this project' and 'Adoption-day state and debt'. It covers budget (II), marginal-value admission (V), behavior not implementation (VI), the Prune step (IX), flakiness and quarantine (XI) and certified deletion (XII)."
+        },
+        {
+          "text": "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+          "passed": true,
+          "evidence": "test-policy.toml: max_tests=180, max_new_tests_per_pr=8, max_suite_seconds=60, tier min_mutation_score 0.90 and 0.80, max_mocks_per_test=3, quarantine_days=14, max_skipped=0. ci.yml runs `tmx.py gate --policy test-policy.toml` in the pr, main and nightly jobs."
+        },
+        {
+          "text": "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+          "passed": true,
+          "evidence": "The critical tier covers shop/money.py, pricing.py, discounts.py and tax.py: rigor=\"R4\", min_mutation_score=0.90. The standard tier (shop/*) is at 0.80. cart.py is not in the money tier; the agent relies on the rule that a change is judged by the strictest code it exercises."
+        },
+        {
+          "text": "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+          "passed": true,
+          "evidence": "Per-tier min_mutation_score in the TOML and Art. III (fault detection, not coverage). No global line-coverage figure."
+        },
+        {
+          "text": "A CI job enforces the policy on pull requests (not only documentation)",
+          "passed": true,
+          "evidence": "The `pr` job in ci.yml has `if: github.event_name == 'pull_request'`. It runs pytest, then `tmx.py collect-pytest` when shop/ or tests/ changed, then `tmx.py gate ... --base origin/${{ github.base_ref }}`."
+        },
+        {
+          "text": "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+          "passed": true,
+          "evidence": "CLAUDE.md and AGENTS.md (identical, 45 lines) state that money code is R4 Strict with its rules, and contain the managed testing-rules block. A .claude/settings.json PostToolUse hook runs tools/tmx/hook_test_edit.py."
+        },
+        {
+          "text": "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+          "passed": false,
+          "evidence": "Budgets start above the current state: max_tests=180 against 175. The blocking main gate passed (172 tests) and so did a README-only simulated PR. But the enforcement does not pass on the current repo. In a scratch copy, the nightly gate (--history 20) FAILS with 5 violations: 'R4: surviving mutant shop/discounts.py:80 / -> //', discounts.py:26 '0'->'1', discounts.py:21 True->False, discounts.py:53 return->None, and money.py:19 delete raise, each 'neither killed nor triaged'. A simulated PR that only adds a comment to shop/discounts.py also FAILS the PR gate with 4 violations. So from day one, any PR touching discounts.py is blocked by gaps that already existed. FINAL.md admits this: 'nightly red from day one (5 real money gaps)'."
+        },
+        {
+          "text": "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach",
+          "passed": true,
+          "evidence": "ci.yml no longer has the `for attempt in 1 2 3` loop. objective ci_has_retry_loop=true is a false positive: the matches are a header comment ('No retry-until-green anywhere') and the text 'tests (no retries)'. The three 'flaky, fix later' skips were moved into .test-quarantine.json (commit 2851bc5), which pyproject addopts deselects in PR runs. The nightly job runs `pytest -m \"\"` to include them."
+        }
+      ],
+      "notes": [
+        "CI not run on real GitHub Actions",
+        "CODEOWNERS/branch protection not added; testing/survivors.json is read from the PR itself",
+        "5 real money gaps untriaged (worst: fractional-cent percentage coupon)",
+        "3 quarantined tests due 2026-10-04",
+        "Added 5 spare test slots after finding that a good money-gap test was blocked for lack of headroom"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 979.7,
+        "tokens": 161216,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+          "passed": true,
+          "evidence": "TEST-CONSTITUTION.md, Articles I-XIII plus an amendment log. Covers budget (II), marginal-value admission (V), behavior not implementation (VI), the Prune step for scaffolding (IX), flakiness and quarantine (XI, extended at lines 154-175) and certified deletion (XII)."
+        },
+        {
+          "text": "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+          "passed": true,
+          "evidence": "test-policy.toml: max_tests=184, max_new_tests_per_pr=8, max_suite_seconds=30, tier min_mutation_score 0.90 and 0.60, max_mocks_per_test=3, quarantine_days=7, max_skipped=0. tests.yml runs `tmx.py gate --policy test-policy.toml` in the pr, main and nightly jobs."
+        },
+        {
+          "text": "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+          "passed": true,
+          "evidence": "The critical tier covers shop/money*, pricing*, discount*, tax*, cart* and future *pay*/*refund*/*invoice*/*billing*/*checkout* globs: rigor=\"R4\", min_mutation_score=0.90. Standard is at 0.60. The gate output shows critical at R4 (218/220)."
+        },
+        {
+          "text": "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+          "passed": true,
+          "evidence": "Per-tier min_mutation_score and constitution Art. III (fault detection). No coverage percentage."
+        },
+        {
+          "text": "A CI job enforces the policy on pull requests (not only documentation)",
+          "passed": true,
+          "evidence": "The `pr` job in tests.yml (on pull_request) runs pytest, the kill matrix when shop/ or tests/ changed, `tmx.py gate --policy test-policy.toml ... --base origin/<base>`, and a baseline-freshness check."
+        },
+        {
+          "text": "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+          "passed": true,
+          "evidence": "CLAUDE.md and AGENTS.md (identical, 54 lines) state that money code is R4 Strict and include the managed testing-rules block. The .claude/settings.json PostToolUse hook runs tools/tmx/hook_test_edit.py. README pointer added."
+        },
+        {
+          "text": "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+          "passed": true,
+          "evidence": "In a scratch copy: main tier 173 passed, 3 deselected, gate PASS. Simulated PR with a comment-only edit to shop/discounts.py: matrix of 280 mutants, PR gate PASS (policy_source=base, R4), and the baseline-current check passes. Nightly gate with --history 20: PASS (critical 220/222). max_tests=184 is above today's 176. Caveat: the nightly 'everything' step reports quarantined test_add_many_items_perf as failing (it always fails). By design this opens an issue rather than failing the job, and the agent disclosed it. The 7-day quarantine expires on 2026-10-03, after which the gate will fail."
+        },
+        {
+          "text": "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach",
+          "passed": true,
+          "evidence": "The old ci.yml was deleted and replaced by tests.yml. objective ci_has_retry_loop=true is a false positive: the only match is the comment '# Art. XI: no retry-until-green'. The three skip('flaky, fix later') tests moved to .test-quarantine.json (commit beff007) with expiry dates. The PR tier deselects quarantine and nightly runs `-m \"\"`."
+        }
+      ],
+      "notes": [
+        "CI not run on real GitHub Actions",
+        "2 money.py equivalent mutants triaged by the agent need human confirmation",
+        "Quarantine owner and issue fields are placeholders",
+        "approvers empty; branch protection required",
+        "max_tests given one change of headroom (176 -> 184)"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.86,
+        "passed": 6,
+        "failed": 1,
+        "total": 7,
+        "time_seconds": 1565.2,
+        "tokens": 174560,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The implementation passes the hidden acceptance tests (graded objectively)",
+          "passed": true,
+          "evidence": "objective.json hidden_acceptance: 43/43 passed ('43 passed in 0.20s')."
+        },
+        {
+          "text": "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+          "passed": true,
+          "evidence": "The tests are organised by spec section. There is a 7-row test_tier_for_points boundary table, a redemption accept table (3 rows) and reject table (7 rows) whose comments say they come from a t=2 covering array of testing/partitions/loyalty.redeem.json, and a SCENARIOS table for edge cases E1/E2/E3/E6. There is a Hypothesis earning property, a yearly_review property with all 13 tier x earned combinations pinned as @example, and a stateful machine. objective: 9 parametrize decorators, 2 property tests."
+        },
+        {
+          "text": "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+          "passed": false,
+          "evidence": "objective.json: tests_added = 34 (> 30); mutation_new_code = 106/109 = 0.972 (>= 0.85). The conjunction fails on the count."
+        },
+        {
+          "text": "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+          "passed": true,
+          "evidence": "All named boundaries are present. Tier table rows: 999->BRONZE, 1000->SILVER, 4999/5000, 19999/20000 (test_tiers.py), plus E1 999+1 in SCENARIOS. The 500 minimum: accept (500,500,10000)->500, reject (400,400,...), capped to exactly the minimum (1000,1000,599)->500, capped below the minimum (3000,1000,450) rejected. Capping: (3000,2000,1250)->1200. The 50% review boundary: REVIEW_PINS has S 499/500, G 2499/2500 and P 9999/10000, and E5 anchors pin G 2499/2500 and P 0->GOLD."
+        },
+        {
+          "text": "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+          "passed": true,
+          "evidence": "test_account_stateful.py LoyaltyMachine (RuleBasedStateMachine) checks the invariants 0 <= balance <= lifetime and ledger.balance == balance, and compares against a spec model at every step. test_yearly_review_rule is a @given property over tier x earned, and test_points_for_purchase_is_exact is a @given property."
+        },
+        {
+          "text": "Expected values come from the spec (not computed by calling the implementation)",
+          "passed": true,
+          "evidence": "The oracles are spec_model.py, which is documented as 'Oracle data copied from SPEC.md, independent of the code under test'. It holds THRESHOLD {0,1000,5000,20000} and MULTIPLIER as Fractions. The earning property's expected value is math.floor(Fraction(amount)*MULTIPLIER[tier]/100). expected_review() is computed from THRESHOLD, and the stateful model computes crossings from THRESHOLD. The table rows are spec literals. Purchases are used only for setup (account_with)."
+        },
+        {
+          "text": "The final summary reports what tests were written and what was pruned or consolidated during TDD",
+          "passed": true,
+          "evidence": "FINAL.md: '34 kept test cases out of 43 written' and a per-area list of the kept tests. It adds 'Pruned 9 rows catching nothing the kept rows miss; before/after comparison: nothing lost', and says two gaps found by mutation were fixed by editing rows."
+        }
+      ],
+      "notes": [
+        "Balance check applies to the requested points (balance 1,300: redeem(2000,1250) raises); pinned by one row",
+        "yearly_review rejects negative/non-int input (beyond spec)",
+        "Independent human review required at R4",
+        "Concurrency not covered",
+        "Two old ledger tests now redundant, left in place",
+        "No separate report file (environment blocked it); results in the plan's Result section"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.86,
+        "passed": 6,
+        "failed": 1,
+        "total": 7,
+        "time_seconds": 1743.8,
+        "tokens": 171722,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The implementation passes the hidden acceptance tests (graded objectively)",
+          "passed": true,
+          "evidence": "objective.json hidden_acceptance: 43/43 passed."
+        },
+        {
+          "text": "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+          "passed": true,
+          "evidence": "There is a 7-row tier table, and a redemption table of 5 accept and 9 reject rows with ids naming partition classes (e.g. 'at_min-capped-exact'). The comments say the rows come from the tmx t=2 covering array. There is a 7-row review table, a SCENARIOS table carrying the literal numbers from edge cases 1/2/3/6, a Hypothesis earning property, and a stateful AccountModel. objective: 9 parametrize decorators."
+        },
+        {
+          "text": "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+          "passed": false,
+          "evidence": "objective.json: tests_added = 41 (> 30); mutation_new_code = 105/107 = 0.981. The conjunction fails on the count."
+        },
+        {
+          "text": "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+          "passed": true,
+          "evidence": "Tier table: 999/1000, 4999/5000, 19999/20000. The 500 minimum: accept (3000,500,500), reject (3000,400,10000) and (3000,400,400), capped below the minimum (3000,1000,450) rejected, capped to the minimum (500,1000,599)->500. Capping: (3000,2000,1250)->1200. The 50% review boundary: silver 499/500, gold 2499/2500, platinum 10000 stays and 0 drops one tier (no 9999 row, but the boundary is pinned for Silver and Gold, and the stateful model draws half-1 and half)."
+        },
+        {
+          "text": "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+          "passed": true,
+          "evidence": "test_account_model.py AccountModel (RuleBasedStateMachine) runs purchase, redeem and review against a spec model. Its invariant asserts that tier, balance and lifetime match and that ledger.balance == balance. test_points_for_purchase_matches_spec_formula is a @given property."
+        },
+        {
+          "text": "Expected values come from the spec (not computed by calling the implementation)",
+          "passed": true,
+          "evidence": "spec_model.py: 'SPEC.md's tier table, written independently of the implementation'. THRESHOLD and MULTIPLIER are Fractions. The earning oracle is math.floor(amount*MULTIPLIER[tier]/100). The stateful model computes crossings, capping and demotion from spec constants. The table rows are literals."
+        },
+        {
+          "text": "The final summary reports what tests were written and what was pruned or consolidated during TDD",
+          "passed": true,
+          "evidence": "FINAL.md: 'I wrote 50 new test cases, pruned 9'. It lists each pruned item (monotonicity property, far-above-20000 row, 3-row anchor table, negative/float purchase rows, two scenarios folded). It records 3 rows added from survivor analysis and 9 rows pruned and then restored because the property reached only 13-22 of 25 pairs."
+        }
+      ],
+      "notes": [
+        "Balance check applies to the capped points (balance 500: redeem(1000,599) succeeds)",
+        "redeem rejects non-integer args; yearly_review rejects negative/non-int",
+        "R4 human review of 4 equivalent-mutant verdicts and the code",
+        "7 of 10 existing ledger tests now subsumed (test-reduce candidates)"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.86,
+        "passed": 6,
+        "failed": 1,
+        "total": 7,
+        "time_seconds": 1333.8,
+        "tokens": 157620,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The implementation passes the hidden acceptance tests (graded objectively)",
+          "passed": true,
+          "evidence": "objective.json hidden_acceptance: 43/43 passed."
+        },
+        {
+          "text": "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+          "passed": true,
+          "evidence": "The tests are organised by behaviour IDs (B1-B11). The 7-row threshold table has ids per boundary class, and the redeem grant/reject tables have ids naming partition classes. There is a SCENARIOS table of the \u00a75 edge cases, a 5-row review table, an exact-earning @given property, and a stateful AccountMachine against a SpecModel. objective: 8 parametrize decorators."
+        },
+        {
+          "text": "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+          "passed": false,
+          "evidence": "objective.json: tests_added = 38 (> 30); mutation_new_code = 124/126 = 0.984 (tiers.py holds LoyaltyAccount). The conjunction fails on the count."
+        },
+        {
+          "text": "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+          "passed": true,
+          "evidence": "Tier table: 999/1000, 4999/5000, 19999/20000. The 500 minimum: accept (500,500,5000), reject (3000,400,5000), capped to the minimum (2000,2000,599)->500, capped below the minimum (3000,500,499) and (3000,1000,450) rejected. Capping: (3000,2000,1250)->1200. The 50% review boundary: only Gold 2499->SILVER and 2500->GOLD, plus Platinum 0->GOLD. The Silver and Platinum 50% rows were pruned, but the stateful rule samples 499/500/9999/10000. The named boundary is present."
+        },
+        {
+          "text": "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+          "passed": true,
+          "evidence": "AccountMachine (RuleBasedStateMachine) runs against SpecModel. Its invariants: balance >= 0, lifetime never decreases (a.lifetime_points >= self.last_lifetime), conservation (balance + redeemed == lifetime), and the tier matches the model."
+        },
+        {
+          "text": "Expected values come from the spec (not computed by calling the implementation)",
+          "passed": true,
+          "evidence": "The oracles are written from the spec. SPEC_MULTIPLIER = Fraction('1.25') etc. in test_tiers.py, and the earning oracle is amount*m.numerator // (100*m.denominator). SpecModel is described as 'The spec, read literally. Deliberately naive' and has its own THRESHOLDS and MULTIPLIER. The table rows are spec literals."
+        },
+        {
+          "text": "The final summary reports what tests were written and what was pruned or consolidated during TDD",
+          "passed": true,
+          "evidence": "FINAL.md has a section headed 'Tests: 55 planned and written, 2 added, 19 pruned, 38 kept'. It lists what was added (2 mutation gaps) and what was pruned (3 earning anchors, 7 of 14 pairwise redeem rows, Silver/Platinum review rows, repeated-category rows), and names the t=2 -> t=1 trade-off."
+        }
+      ],
+      "notes": [
+        "A1: balance check on requested points before capping",
+        "A2-A4: review input validation, bool/float rejection, negative ledger entries",
+        "R4 independent human review",
+        "Sign-off on A1-A4",
+        "No test policy file, so the CI gate could not run"
+      ]
+    },
+    {
+      "eval_id": 0,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 13,
+        "failed": 0,
+        "total": 13,
+        "time_seconds": 606.7,
+        "tokens": 167956,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+          "passed": true,
+          "evidence": "FINAL.md: 313 planted faults (280 generated, 30 hand-written, 3 reverted fixes); .tmx/matrix.json per-test kill matrix; keep.csv has per-test kills/unique_kills columns."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+          "passed": true,
+          "evidence": "'43 of the 172 running tests catch every bug the full suite catches'; report 'What these numbers don't cover': certificate covers 280 generated faults (11 operator families, no sampling) + 30 domain faults + 3 reverted commits; 'provably the minimum (solver optimum equals lower bound)'."
+        },
+        {
+          "text": "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+          "passed": true,
+          "evidence": "outputs/verify.log: 'VALID: all 305 obligations (killed mutants) are discharged by the 43 retained tests'."
+        },
+        {
+          "text": "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+          "passed": true,
+          "evidence": "keep.csv verdict=keep includes test_volume_discount_starts_at_exactly_ten_units, test_volume_tier_boundaries_at_fifty_and_one_hundred, test_coupon_is_valid_through_its_expiry_date, test_tax_rounds_half_cents_up, test_releasing_more_than_reserved_raises (the last three marked PROTECTED)."
+        },
+        {
+          "text": "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+          "passed": true,
+          "evidence": "'9 copy-paste groups (56 tests) -> 9 parametrized tables', with examples test_add_two_units/_three_units/_five_units and test_tax_ca_100/ca_200; report has a cluster table and suggests a line_total property."
+        },
+        {
+          "text": "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+          "passed": true,
+          "evidence": "'18 tests check structure: 7 read private state (_items, _reserved, _stock); 11 mock the module's own helpers and check call counts/order'. The report's 'Ten worst tests' names test_line_total_calls_validate_then_rate (asserts internal call order)."
+        },
+        {
+          "text": "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+          "passed": true,
+          "evidence": "'8 no-assertion, 2 self-comparisons' (test_apply_coupons_is_deterministic result==result, test_quantity_same_twice); sleep(0.2) test is 74% of suite time; 3 'flaky' skips checked: test_add_many_items_perf always fails, other two pass 20/20."
+        },
+        {
+          "text": "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+          "passed": true,
+          "evidence": "CI finding (high): 'Retry-until-green loop ... a real intermittent failure goes green' ci.yml:22-30 -> 'Run pytest once. Quarantine a flaky test in a dated file and fix or delete it within the window.' Also recommends a nightly probation tier."
+        },
+        {
+          "text": "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+          "passed": true,
+          "evidence": "3 fix commits reverted as faults ('3 real bugs from git history (fix commits reverted)'). Their tests are kept with --keep flags and labeled PROTECTED with commit hashes ea5ee7d/616a220/dec6bd0."
+        },
+        {
+          "text": "Did not modify tests/ or shop/",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true, tests_unchanged=true; git status shows only untracked .tmx/ and .grade-smells.json."
+        },
+        {
+          "text": "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+          "passed": true,
+          "evidence": "verify.log: 'replayed 305 obligations against the retained suite alone: all caught'. The report's re-run command is 'tmx.py verify ... --rerun'. FINAL: 're-run and checked, not estimated'."
+        },
+        {
+          "text": "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+          "passed": true,
+          "evidence": "outputs/faults.json has 30 hand-written faults, e.g. wrong CA/NY/TX rates, tiers checked smallest-first, tax before discount, reserve_all non-atomic. They were fed into the matrix before the plan."
+        },
+        {
+          "text": "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion",
+          "passed": true,
+          "evidence": "'Move the 129 to a nightly probation tier, then delete them after a clean probation window'; 'Removal should go through a nightly probation tier first, not straight to deletion.'"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 13,
+        "failed": 0,
+        "total": 13,
+        "time_seconds": 579.2,
+        "tokens": 141013,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+          "passed": true,
+          "evidence": "306 faults injected; .tmx/matrix.json (910KB) per-test kill matrix; keep-remove.csv has kills/unique_kills per test."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+          "passed": true,
+          "evidence": "'41 is provably the smallest set catching all 298 caught faults' (41 of 172 run). Scope stated: 280 generated (11 fault types, no sampling) + 23 hand-written + 3 real git bugs; 'guarantee covers these 306 faults only'."
+        },
+        {
+          "text": "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+          "passed": true,
+          "evidence": ".tmx/verify.log: 'VALID: all 298 obligations (killed mutants) are discharged by the 41 retained tests'."
+        },
+        {
+          "text": "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+          "passed": true,
+          "evidence": "keep-remove.csv keep rows: test_volume_discount_starts_at_exactly_ten_units, test_volume_tier_boundaries_at_fifty_and_one_hundred, test_coupon_is_valid_through_its_expiry_date (REAL BUG ea5ee7d), test_tax_rounds_half_cents_up (616a220), test_releasing_more_than_reserved_raises (dec6bd0)."
+        },
+        {
+          "text": "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+          "passed": true,
+          "evidence": "Report section '56 copy-paste tests are 9 tables' lists clusters with rows: test_line_total_one_unit (11), test_tax_ca_100 (8), test_add_two_units (7), test_volume_rate_one (7), test_percent_coupon_ten_on_hundred (6), test_reserve_one_widget (6), etc."
+        },
+        {
+          "text": "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+          "passed": true,
+          "evidence": "Worst offenders: test_line_total_calls_validate_then_rate (4 mocks, asserts internal call order), test_tax_for_uses_round_cents_helper (patches, asserts helper call counts). A behaviour-neutral refactor probe (refactor-probe.txt) broke 12 private-state/internal-call tests."
+        },
+        {
+          "text": "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+          "passed": true,
+          "evidence": "Report: test_apply_coupons_is_deterministic 'assert result == result (cannot fail)'; smoke tests with no assertions; sleep(0.2) test ~40% of time; '3 skipped forever (two \"flaky\" pass 10/10, test_add_many_items_perf can never pass)'."
+        },
+        {
+          "text": "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+          "passed": true,
+          "evidence": "CI1 high: retry-until-green 'a real intermittent failure is reported as success' ci.yml:22-30 -> 'Run pytest once. Put genuinely flaky tests in a dated quarantine file that the gate expires.'"
+        },
+        {
+          "text": "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+          "passed": true,
+          "evidence": "'3 real git-history bugs reverted' as faults; 'All 3 real past bugs caught, each by exactly one test: protect by name.'"
+        },
+        {
+          "text": "Did not modify tests/ or shop/",
+          "passed": true,
+          "evidence": "objective.json src_unchanged/tests_unchanged true; git status only untracked .tmx/ and .grade-smells.json."
+        },
+        {
+          "text": "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+          "passed": true,
+          "evidence": ".tmx/verify.log: 'replayed 298 obligations against the retained suite alone: all caught'. FINAL: 'each fault re-run against the 41 alone, every one caught'."
+        },
+        {
+          "text": "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+          "passed": true,
+          "evidence": ".tmx/faults.json: 23 hand-written money/inventory faults (wrong CA rate, tax before discount, non-atomic reserve_all) passed via --extra-mutants into collect-pytest."
+        },
+        {
+          "text": "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion",
+          "passed": true,
+          "evidence": "'move 134 to nightly trial, delete after'; report: 'removed tests should sit in a nightly probation tier before deletion rather than being deleted outright'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 13,
+        "failed": 0,
+        "total": 13,
+        "time_seconds": 584.5,
+        "tokens": 141157,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+          "passed": true,
+          "evidence": "314 injected bugs; .tmx/matrix.json per-test kill matrix; keep.csv kills/unique_kills per test; also reports tests-failing-per-fault 13.2 -> 3.4."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+          "passed": true,
+          "evidence": "'42 is the smallest set for these bugs' (42 keep rows in keep.csv, of 172 running). Scope: 270 generated + 31 hand-written + 3 real past bugs; 'Limits: \"needed\" relative to these 314 bugs'."
+        },
+        {
+          "text": "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+          "passed": true,
+          "evidence": ".tmx/verify.log: 'VALID: all 306 obligations (killed mutants) are discharged by the 42 retained tests'."
+        },
+        {
+          "text": "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+          "passed": true,
+          "evidence": "keep.csv keep rows include test_volume_discount_starts_at_exactly_ten_units, test_volume_tier_boundaries_at_fifty_and_one_hundred, test_coupon_is_valid_through_its_expiry_date, test_tax_rounds_half_cents_up, test_releasing_more_than_reserved_raises."
+        },
+        {
+          "text": "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+          "passed": true,
+          "evidence": "'56 tests in 9 copy-paste groups (11 test_line_total_*_units, 8 test_tax_<region>_<amount>)'. Report section 5 lists each cluster with rows and says to make each one parametrized table or property."
+        },
+        {
+          "text": "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+          "passed": true,
+          "evidence": "'18 internals-tied (cart._items, store._reserved, internal calls), only one kept'; test_line_total_calls_round_cents is marked 'BRITTLE (mocks a private helper)', to be replaced with a value assertion."
+        },
+        {
+          "text": "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+          "passed": true,
+          "evidence": "'7 no assertion, 2 can never fail (result == result)'; 'sleep(0.2) test_inventory.py:87 is half of 0.41 s'; 3 'flaky' skips aren't flaky (perf always fails), delete all three."
+        },
+        {
+          "text": "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+          "passed": true,
+          "evidence": "CI1 high: retry-until-green, 'A real intermittent failure is invisible' ci.yml:22-30. CI2: 'Replace skip with a quarantine file that has an expiry date and fails the gate when stale.' Says no tiers are needed at 0.41 s but recommends a nightly probation tier."
+        },
+        {
+          "text": "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+          "passed": true,
+          "evidence": "'3 real past bugs (fix commits undone)' in the fault set; 'the 42 ... including all three shipped-and-fixed bugs'; the real-bug tests are kept by name with commit hashes."
+        },
+        {
+          "text": "Did not modify tests/ or shop/",
+          "passed": true,
+          "evidence": "objective.json src_unchanged/tests_unchanged true; git status only untracked .tmx/ and .grade-smells.json."
+        },
+        {
+          "text": "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+          "passed": true,
+          "evidence": "verify.log: 'replayed 306 obligations against the retained suite alone: all caught'; FINAL: 'checked by running the 42 on their own against every caught bug'."
+        },
+        {
+          "text": "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+          "passed": true,
+          "evidence": "outputs/faults.json has 31 hand-written faults (wrong regional rate, tax before discount, coupon order, tier order, per-unit rounding, overselling)."
+        },
+        {
+          "text": "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion",
+          "passed": true,
+          "evidence": "'removed tests to nightly probation before deletion'; order: 'probation then delete 130'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 1411.8,
+        "tokens": 167567,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+          "passed": true,
+          "evidence": "objective.json pr_tier: '57 passed, 33 deselected', exit 0, 0 failed (57 <= 60). The full suite (with probation) has 90 passed."
+        },
+        {
+          "text": "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+          "passed": true,
+          "evidence": "objective.json: kills_before=274, kills_after_pr_tier=278, lost_kills=[]. Agent artifacts: outputs/compare-final-pr.log {tests_before:172, tests_after:57, lost:[], newly_killed:7} and linecmp-final-pr.log {lines 152->152, lost:[]}. .tmx/verify2.log: plan2 verify --rerun VALID."
+        },
+        {
+          "text": "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+          "passed": true,
+          "evidence": "objective.json: history_mutants_killed=3/3 (reverted fixes ea5ee7d expiry, 616a220 banker's rounding, dec6bd0 over-release all fail the retained suite). Named regression tests test_coupon_is_valid_through_its_expiry_date, test_tax_rounds_half_cents_up, test_releasing_more_than_reserved_raises are present and listed in testing/protected.txt."
+        },
+        {
+          "text": "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+          "passed": true,
+          "evidence": "ws/tests has parametrized tables: test_pricing.py test_line_total (9 rows: 9/10/49/50/99/100/MAX/free/round-once) and test_line_total_rejects; test_tax.py tax tables; test_discounts.py has 5 parametrize tables plus a Hypothesis @given property; test_checkout.py test_checkout_totals has 9 rows replacing test_integration.py and test_cart_regression.py. Commit c980754: 'consolidate 172 tests into 37 functions / 89 cases (compare: 0 lost)'."
+        },
+        {
+          "text": "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+          "passed": true,
+          "evidence": "test_pricing.py::test_line_total has rows at-49/at-50/at-99 in the PR tier. The at-100 row was demoted to probation, but qty=100 is still pinned in the PR tier by test_checkout_totals[bulk] (PEN 1.00 x100 -> 85.00). test_discounts.py::test_coupon_is_valid_through_its_expiry_date (expires 2024-06-30, checked on the day) is present. test_tax.py::test_tax_rounds_half_cents_up is present. test_inventory.py::test_releasing_more_than_reserved_raises (release 4 of 3) is present."
+        },
+        {
+          "text": "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+          "passed": true,
+          "evidence": "Commit 86e412d demotes 33 tests to probation. .test-probation.json has 33 entries, each with reason (subsumed/jointly-covered) and a per-test witness list. The conftest hook deselects them from the PR tier (objective: 33 deselected), and CI runs them nightly. Consolidation deletions were certified by the compare log (0 lost). Only the no-assertion/tautology/skipped/sleep smells were deleted outright."
+        },
+        {
+          "text": "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+          "passed": true,
+          "evidence": "objective smells_after={} and ws/.grade-smells.json by_kind={}. grep of ws/tests for sleep, mark.skip, xfail and 'assert True' finds nothing. The original had 7 no-assertion, 1 tautology, 1 sleep and 3 skipped."
+        },
+        {
+          "text": "Did not modify the shop/ source code",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 992.5,
+        "tokens": 181838,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+          "passed": true,
+          "evidence": "objective.json pr_tier: '55 passed, 31 deselected', exit 0 (55 <= 60). The full suite has 86 passed."
+        },
+        {
+          "text": "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+          "passed": true,
+          "evidence": "objective.json: kills_before=274, kills_after_pr_tier=276, lost_kills=[]. Agent artifacts: ws/.tmx/compare-final-pr.log {tests_before:172, tests_after:55, lost:[], newly_killed:3}; compare-consolidate.log (86 tests, lost []); line compare 152->152 lost []. .tmx/verify2.log: 'VALID: all 473 obligations ... discharged by the 55 retained tests'."
+        },
+        {
+          "text": "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+          "passed": true,
+          "evidence": "objective.json: history_mutants_killed=3/3 (reverted fixes ea5ee7d expiry, 616a220 banker's rounding, dec6bd0 over-release all fail the retained suite). Named regression tests test_coupon_is_valid_through_its_expiry_date, test_tax_rounds_half_cents_up, test_releasing_more_than_reserved_raises are present and listed in testing/protected.txt."
+        },
+        {
+          "text": "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+          "passed": true,
+          "evidence": "ws/tests has parametrized tables: test_pricing.py (test_volume_discount_rate_tiers, test_line_total, test_line_total_rejects_invalid_input, test_effective_unit_price); test_money.py (3); test_discounts.py (3); test_tax.py; test_cart.py. Commit d16a76a: 'consolidate 175 tests into 86 tables and behavior tests (compare: 0 of 318 kills lost)'. There is no property test, which the assertion does not require."
+        },
+        {
+          "text": "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+          "passed": true,
+          "evidence": "test_pricing.py::test_volume_discount_rate_tiers has rows 9, 10, 49, 50, 99 and 100. The [100-0.15] row was demoted to probation, but qty=100 is still pinned in the PR tier by test_integration.py (PEN 1.00 x100 -> 85.00 inside exact totals). test_discounts.py::test_coupon_is_valid_through_its_expiry_date, test_tax.py::test_tax_rounds_half_cents_up and test_inventory.py::test_releasing_more_than_reserved_raises are all present."
+        },
+        {
+          "text": "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+          "passed": true,
+          "evidence": "Commit 8634908 demotes 31 tests to nightly probation ('plan2 verify --rerun: VALID'). .test-probation.json has 31 entries with reason and witness lists, and they are deselected from the PR tier (objective: 31 deselected). Consolidation removals were certified by compare-consolidate.log (0 lost). Outright deletions are limited to 7 no-assert, 1 tautology and 3 skipped tests, as the report states."
+        },
+        {
+          "text": "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+          "passed": true,
+          "evidence": "objective smells_after={} and ws/.grade-smells.json by_kind={}. No sleep, skip, xfail or 'assert True' in ws/tests."
+        },
+        {
+          "text": "Did not modify the shop/ source code",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 1015.7,
+        "tokens": 171153,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+          "passed": true,
+          "evidence": "objective.json pr_tier: '49 passed, 25 deselected', exit 0 (49 <= 60). The full suite has 74 passed."
+        },
+        {
+          "text": "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+          "passed": true,
+          "evidence": "objective.json: kills_before=274, kills_after_pr_tier=278, lost_kills=[]. Agent artifacts: outputs/compare-final.log {tests_before:172, tests_after:49, lost:[], newly_killed:6}; compare-consolidate.log (74 tests, lost []). verify-plan2.log: 'VALID: all 465 obligations ... discharged by the 49 retained tests'."
+        },
+        {
+          "text": "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+          "passed": true,
+          "evidence": "objective.json: history_mutants_killed=3/3 (reverted fixes ea5ee7d expiry, 616a220 banker's rounding, dec6bd0 over-release all fail the retained suite). Named regression tests test_coupon_is_valid_through_its_expiry_date, test_tax_rounds_half_cents_up, test_releasing_more_than_reserved_raises are present and listed in testing/protected.txt."
+        },
+        {
+          "text": "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+          "passed": true,
+          "evidence": "ws/tests has parametrized tables: test_pricing.py (test_volume_discount_rate_tier_boundaries, test_line_total, test_line_total_rejects_invalid_input, test_effective_unit_price); test_tax.py; test_discounts.py (test_single_coupon_discount, test_stacked_coupons_on_100, ...); test_money.py. Ten integration tests were merged into one end-to-end test. Commit 5970429: 'consolidate 172 tests into 74 (tables + merges); compare vs audit: 0 lost'."
+        },
+        {
+          "text": "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+          "passed": true,
+          "evidence": "test_volume_discount_rate_tier_boundaries has rows 9/10/49/50/99/100. Rows [10] and [100] are on probation, but qty=100 is still pinned in the PR tier by test_integration.py (PEN 1.00 x100 -> 85.00 with exact totals). test_coupon_is_valid_through_its_expiry_date plus test_expired_coupon_is_not_applicable, test_tax_rounds_half_cents_up and test_releasing_more_than_reserved_raises are all present."
+        },
+        {
+          "text": "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+          "passed": true,
+          "evidence": "Commit 447be31 demotes 25 tests to probation ('plan2 verify --rerun: VALID'), with per-test witnesses in .test-probation.json, and they are deselected from the PR tier. The report itself says the 98 tests removed during consolidation skipped probation and are backed by compare-consolidate.log (0 lost). That comparison artifact exists, so it counts under the consolidation rule."
+        },
+        {
+          "text": "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+          "passed": true,
+          "evidence": "objective smells_after={'assertion-roulette': 1} (test_invalid_coupon_definitions_rejected). That kind is not in scope for this assertion. No tautology, no-assertion, sleep or skipped smells remain, and grep finds no sleep, skip or xfail in ws/tests."
+        },
+        {
+          "text": "Did not modify the shop/ source code",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 462.2,
+        "tokens": 118392,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+          "passed": true,
+          "evidence": "Stryker perTest with --disableBail: .tmx/stryker.log shows \"stryker run --disableBail\", 66 tests, 77 mutants. The matrix was built from reports/mutation/mutation.json (57 of 77 mutants have >1 killer)."
+        },
+        {
+          "text": "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+          "passed": true,
+          "evidence": "FINAL: 'Stryker with bail off on the command line (config not edited)' and 'stryker.config.json should get disableBail: true'. The report says 'Stryker config leaves bail on, so each mutant records only its first killer and the per-test data is wrong'. mutation.json killedBy has up to 39 killers per mutant."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+          "passed": true,
+          "evidence": "'You need 15 of your 66 passing tests', relative to 77 Stryker default-mutator mutants plus 27 hand-written domain faults (findings.json scope.operators). It also says 'A Stryker-only plan keeps 10 tests'."
+        },
+        {
+          "text": "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+          "passed": true,
+          "evidence": "The 15 keep 'volume tier boundaries', '999/1000', 'min spend inclusive' and 'percentages before fixed'. 'discount never exceeds subtotal' is outside the certified 15. FINAL still recommends it: 'Would also keep \"rounds half up\" and \"discount never exceeds subtotal\" as explicit rows (17)', and the order says 'cut to 15/17'. Passed on that recommendation. Caveat: the HTML says the cap test 'can be removed on the evidence', because no cap-removal fault was in its domain set."
+        },
+        {
+          "text": "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+          "passed": true,
+          "evidence": "'Brittle: private lines Map via (c as any) (cart.test.ts:9); module spy counting percentOf calls (pricing-extra.test.ts:10)'. smells.json classifies them as implementation-coupled / mock-spy."
+        },
+        {
+          "text": "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+          "passed": true,
+          "evidence": "The FINAL and HTML flag the skipped 'flaky' test (it always fails: 60 lines into a 50-line cart), 3 no-assertion tests, expect(true).toBe(true) and 'is deterministic' (catch nothing), the 50 ms sleep and the inline snapshot."
+        },
+        {
+          "text": "Did not modify src/ or test/",
+          "passed": true,
+          "evidence": "objective.json: src_unchanged=true, tests_unchanged=true. git status shows only '?? .tmx/'."
+        },
+        {
+          "text": "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+          "passed": true,
+          "evidence": "Throwaway copy scratchpad/ts-audit-replay (node_modules symlinked to this run's ws). Its .tmx/stryker.log shows 'stryker run --disableBail' with 'Ran 15 tests'. Its .tmx/compare.log shows tests_before 66, tests_after 15, lost []. Domain faults were re-run there too (matrix-domain.json)."
+        },
+        {
+          "text": "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut",
+          "passed": true,
+          "evidence": "27 hand-written domain faults (tax rates, tier thresholds/rates/order, MAX_LINES, coupon order, rounding, qty cap), in .tmx/domain-faults.log. FINAL: 'A Stryker-only plan keeps 10 tests and would stop catching wrong NY/TX/OR rates ... hence 15.' Incomplete: the set had no subtotal sum-vs-largest fault and no discount-cap removal, so the 15 lose both."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 576.4,
+        "tokens": 127863,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+          "passed": true,
+          "evidence": "Stryker perTest with --disableBail. .tmx/stryker-mutation.json has 66 tests and 57/77 mutants with multiple killers. The per-test matrix is in .tmx/matrix.json and matrix-domain.json."
+        },
+        {
+          "text": "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+          "passed": true,
+          "evidence": "'Stryker run with --disableBail on the command line (the checked-in config records only the first killer, which makes per-test data wrong)'."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+          "passed": true,
+          "evidence": "'17 of your 67 tests do all the work', certified over 100 faults (77 Stryker + 23 domain). 'Stryker alone suggests 10, which would miss 9 money bugs'."
+        },
+        {
+          "text": "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+          "passed": true,
+          "evidence": "The keep list has 'volumeDiscountBps tier boundaries', '999/1000', 'min spend inclusive', 'percentages before fixed' and 'discount never exceeds subtotal'."
+        },
+        {
+          "text": "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+          "passed": true,
+          "evidence": "'Refactor-breakers: call-count spy on percentOf; private-state read; inline snapshot; 50 ms sleep'."
+        },
+        {
+          "text": "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+          "passed": true,
+          "evidence": "It flags 'always passes', 'is deterministic', the no-assertion remove test, 'does not crash' (no assertion), the skipped 'flaky' test (not flaky, 3/3 fails), the inline snapshot and the 50 ms sleep."
+        },
+        {
+          "text": "Did not modify src/ or test/",
+          "passed": true,
+          "evidence": "objective.json: src_unchanged=true, tests_unchanged=true. git status shows only '?? .tmx/'."
+        },
+        {
+          "text": "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+          "passed": true,
+          "evidence": ".tmx/replay_subset.py copies the project and it.skips the non-kept tests. .tmx/stryker-mutation-subset17.json shows 17 tests, 75/77 killed. faults-result-subset17.json exists. compare-subset17.log: tests_after 17, lost []."
+        },
+        {
+          "text": "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut",
+          "passed": true,
+          "evidence": "24 business-rule faults were injected in throwaway copies (.tmx/faults.json: NY/TX/CA/OR rates, OR dropped, coupon order swap, additive stacking, subtotal = max line, and more), and the cut was certified over them. That moved the answer from 10 to 17."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.89,
+        "passed": 8,
+        "failed": 1,
+        "total": 9,
+        "time_seconds": 420.3,
+        "tokens": 110179,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+          "passed": true,
+          "evidence": "Stryker perTest run with --disableBail. .tmx/mutation.json has 57/77 multi-killer mutants. The kill matrix is in .tmx/matrix.json."
+        },
+        {
+          "text": "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+          "passed": true,
+          "evidence": "'stryker.config.json lacks disableBail (misleading per-test results; passed --disableBail on the command line)'."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+          "passed": true,
+          "evidence": "'You need 16 of your 66 running tests', relative to 89 faults (75 Stryker + 14 hand-written pricing bugs, out of 93). 'Stryker alone says 10'."
+        },
+        {
+          "text": "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+          "passed": true,
+          "evidence": "The keep list has 'tier boundaries inclusive', '999/1000', 'min spend inclusive', 'percentages before fixed' and 'discount never exceeds subtotal'."
+        },
+        {
+          "text": "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+          "passed": true,
+          "evidence": "'Brittle: ... private lines map; percentOf call-count spy; inline snapshot; 50 ms sleep ...'."
+        },
+        {
+          "text": "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+          "passed": true,
+          "evidence": "It flags the skipped 'flaky' test (fails 3/3 when unskipped), expect(true).toBe(true), 'percentOf vs itself', 'two no-assertion', the inline snapshot and the 50 ms sleep."
+        },
+        {
+          "text": "Did not modify src/ or test/",
+          "passed": true,
+          "evidence": "objective.json: src_unchanged=true, tests_unchanged=true. git status shows only '?? .tmx/'."
+        },
+        {
+          "text": "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+          "passed": false,
+          "evidence": "Not done. FINAL Limits: 'the 16 not yet run on their own (checked against recorded results; confirming run belongs to the cut)'. findings.json redundancy.rerun_verified=false. verify.log is a certificate check over recorded data only."
+        },
+        {
+          "text": "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut",
+          "passed": true,
+          "evidence": "16 hand-written pricing faults (.tmx/domain-faults.json) were run. 'Stryker alone says 10 ... the 10-set would miss 6 the suite catches (wrong NY/TX/OR rate, fixed before percentage, subtotal = largest line, discount not capped)'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.88,
+        "passed": 7,
+        "failed": 1,
+        "total": 8,
+        "time_seconds": 1044.1,
+        "tokens": 147305,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+          "passed": false,
+          "evidence": "TESTING.md and AGENTS.md cover the budget (s3), admission of new tests only if they kill a unique mutant (s4), behavior over implementation (T004/T005, AGENTS rule 4), flaky handling (s6 quarantine, never retry) and deletion (delete a test that kills no unique mutant; ratchet after removal). They do NOT cover pruning scaffolding tests. The only 'prune' matches are the `baseline --prune` command for grandfathered lint entries. There is no Red-Green-Refactor-Prune rule and no instruction to delete the tests written while developing."
+        },
+        {
+          "text": "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+          "passed": true,
+          "evidence": "test-policy.toml: max_total_tests=175, per-file max_tests caps, max_cases_per_test=30, max_test_seconds=1.0, max_suite_seconds=60, per-tier min_line/branch/mutation (100/100/100 and 90/85/80), quarantine max_days=30. CI steps `tools/test_gate.py static/coverage/durations/mutation/admission` read it. There is no explicit per-PR count; instead any net growth needs the test-budget-approved label."
+        },
+        {
+          "text": "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+          "passed": true,
+          "evidence": "[tiers.money] (money.py, pricing.py, discounts.py, tax.py) sets min_mutation_score=100, 100% line and branch coverage, and forbid_mocking=true. [tiers.standard] is at 80% mutation and 90/85% coverage."
+        },
+        {
+          "text": "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+          "passed": true,
+          "evidence": "Per-tier min_mutation_score (money 100, standard 80) from its own tools/mutate.py, enforced by the CI `mutation` job. Per-tier coverage floors also exist, but adequacy is framed around mutation (TESTING.md s1) and no single global line-coverage number is used."
+        },
+        {
+          "text": "A CI job enforces the policy on pull requests (not only documentation)",
+          "passed": true,
+          "evidence": "ci.yml runs on pull_request (including labeled/unlabeled). The policy job runs `test_gate.py static --base-ref origin/<base>`, and the test, mutation and admission jobs (`test_gate.py admission`) also run on PRs."
+        },
+        {
+          "text": "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+          "passed": true,
+          "evidence": "AGENTS.md has 7 binding testing rules, including money-code rules and what not to do. CLAUDE.md imports @AGENTS.md. .claude/settings.json runs PostToolUse and Stop hooks (tools/hooks/policy_hook.py). A git pre-commit hook is also added."
+        },
+        {
+          "text": "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+          "passed": true,
+          "evidence": "In a scratch copy: gate self-tests 11 passed. `static` OK (175/175, 103 grandfathered). Tests 172 passed, 3 skipped. Coverage OK. Durations OK. Mutation OK: money 100% after 2 equivalents and 3 known gaps expiring 2026-10-26. On a simulated PR (base main): static OK, admission 'no new test functions'. Budgets equal today's counts. Note: the work is on branch test-governance, not main."
+        },
+        {
+          "text": "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach",
+          "passed": true,
+          "evidence": "The retry loop is gone. objective ci_has_retry_loop=true is a false positive: the only matches are the comment 'There is deliberately no retry loop' and the step name 'Run tests once (no retries)'. The 3 flaky skips got [[quarantine]] entries with owner, reason and expires=2026-10-26, and CI fails after expiry."
+        }
+      ],
+      "notes": [
+        "CI not run for real",
+        "Replace @shop/maintainers in CODEOWNERS; restrict the label; branch protection",
+        "3 quarantines and 3 known money gaps expire 2026-10-26 and CI fails until they are fixed",
+        "Homegrown dependency-free mutation tester"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.88,
+        "passed": 7,
+        "failed": 1,
+        "total": 8,
+        "time_seconds": 755.4,
+        "tokens": 137394,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+          "passed": true,
+          "evidence": "TESTING.md: s1 principles (a test is a liability; mutation, not coverage; behavior, not implementation). s3 budget. s4 admission of a new test only if it catches something the suite misses, plus 'TDD is Red -> Green -> Refactor -> Prune... delete or merge the scaffolding tests'. s6 flaky tests quarantined with an expiry. Deletion: 'delete a test that kills no mutant the rest of the suite doesn't already kill', then `budget --sync`."
+        },
+        {
+          "text": "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+          "passed": true,
+          "evidence": "test-policy.toml: per-file [budget.files] summing to 175, per-tier min_line/branch/mutation/changed_mutation (money 100/100/100/100, standard 95/90/90/85), quarantine max_days=14, clone_cluster_min=3, snapshot_max_elements=20. CI steps `test_gate.py static/coverage/mutation/ratchet` read it. There is no explicit per-PR count; any net increase needs the test-policy-approved label."
+        },
+        {
+          "text": "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+          "passed": true,
+          "evidence": "[tiers.money] covers money.py, pricing.py, discounts.py, tax.py and cart.py::LineItem.total/Cart.subtotal/Cart.checkout_totals, at 100% mutation and 100% coverage. Standard is at 90% mutation."
+        },
+        {
+          "text": "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+          "passed": true,
+          "evidence": "Per-tier min_mutation_score and min_changed_mutation_score from tools/mutate.py (TESTING.md: 'Adequacy is measured by mutation score, not by coverage or test count'). Coverage floors are also per tier, not a single global figure."
+        },
+        {
+          "text": "A CI job enforces the policy on pull requests (not only documentation)",
+          "passed": true,
+          "evidence": "The ci.yml `tests` job runs on pull_request (and push): pytest, then `test_gate.py static`, `coverage`, and `mutation --pr-base origin/<base>`. The `policy-ratchet` job (PR only) runs `test_gate.py ratchet --base`. Note: no CI step checks that each new test kills a unique mutant; marginal value is only documented."
+        },
+        {
+          "text": "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+          "passed": true,
+          "evidence": "CLAUDE.md has 7 binding testing rules: don't add tests by default, budget, money-code strictness, forbidden patterns, quarantine, Prune, never loosen the policy. AGENTS.md points to it. .claude/settings.json runs a PostToolUse `test_gate.py static --hook` and asks before policy or tool edits."
+        },
+        {
+          "text": "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+          "passed": false,
+          "evidence": "The blocking gates pass in a scratch copy: pytest 172 passed, 3 skipped; static OK (175/175); coverage OK; mutation OK (money 86/86 with 2 grandfathered survivors); simulated PR mutation --pr-base and ratchet OK. Budgets equal today's counts. But the nightly job's last step, `pytest tests -m quarantine --run-quarantined`, exits 5 ('175 deselected', no tests collected) because no test carries the quarantine marker. The scheduled job therefore goes red on day one and every night after. src_unchanged=false: shop/money.py gained only two `# pragma: no mutate -- <reason>` comments, which is harmless and changes no behavior."
+        },
+        {
+          "text": "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach",
+          "passed": true,
+          "evidence": "The retry loop is removed. objective ci_has_retry_loop=true is a false positive: the matches are the comment 'No retry loop... retrying until green hides real failures'. A quarantine marker with issue and until (max 14 days) was added, with a conftest skip and a nightly run. Caveat: the three existing skip('flaky, fix later') tests were left as bare skips grandfathered in test-baseline.json rather than quarantined."
+        }
+      ],
+      "notes": [
+        "CI not run for real",
+        "Replace @OWNER in CODEOWNERS; branch protection; create the label",
+        "2 money coupon gaps grandfathered, not closed",
+        "Own dependency-free mutation tester"
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 1112.2,
+        "tokens": 142465,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+          "passed": true,
+          "evidence": "TESTING.md: s1 tiers. s2 budget ('budgets are a ratchet'). s3 admission ('a test earns its place by detecting something no other test detects') plus 'When a feature is done, prune... Delete the scaffolding tests'. s4 lint (TG001 private state -> 'assert on public behaviour'; TG002 no mocking own code). s5 flaky tests: quarantine with expiry, never retries. s6 'Deleting tests' (allowed while the gates stay green; tighten budgets)."
+        },
+        {
+          "text": "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+          "passed": true,
+          "evidence": "test-policy.toml: budget total=175 plus per-file caps, per-tier min_branch_coverage and min_mutation_score (money 100/100, standard 90/85), max_parametrize_cases=20, clone_cluster_min=3, max_quarantined=5, max_quarantine_days=14, max_mutation_suppressions=2. CI runs `tools/testgov.py check/coverage/mutation/marginal`, which read it. There is no explicit per-PR count; raising a budget needs a logged [[budget_increase]] with an approver."
+        },
+        {
+          "text": "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+          "passed": true,
+          "evidence": "[tiers.money] covers money, pricing, discounts, tax and cart: 100% branch coverage, 100% mutation, exact_money_assertions=true, budget_increase_needs_approver=true. Standard (inventory) is at 90/85."
+        },
+        {
+          "text": "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+          "passed": true,
+          "evidence": "Per-module mutation floors per tier (100 and 85) are enforced by the `mutation` job. Coverage floors are also per tier, not a single global number."
+        },
+        {
+          "text": "A CI job enforces the policy on pull requests (not only documentation)",
+          "passed": true,
+          "evidence": "ci.yml runs on pull_request. The policy job runs `testgov.py check --base origin/<base>`. The tests job runs coverage floors. The mutation job runs mutation floors and `testgov.py marginal --base` (each added test must kill a unique mutant)."
+        },
+        {
+          "text": "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+          "passed": true,
+          "evidence": "AGENTS.md has 6 rules: unique-catch admission, fixed budgets, money at 100%, banned patterns, no retry or skip, prune scaffolding. CLAUDE.md points to it and describes the hooks. .claude/settings.json runs `testgov.py hook` (PreToolUse and PostToolUse) and asks before policy edits."
+        },
+        {
+          "text": "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+          "passed": true,
+          "evidence": "In a scratch copy: `testgov.py check` ok (104 grandfathered). pytest exit 0. Coverage ok (all money at 100%). Mutation ok (money 100% with 2 pragma suppressions). Simulated PR: check --base and marginal both ok. Budgets equal today's counts. The nightly quarantine job fails (test_add_many_items_perf) but is `continue-on-error: true` (informational), so the workflow isn't red. src_unchanged=false: shop/money.py gained only two `# pragma: no mutate -- <reason>` comments, which is harmless."
+        },
+        {
+          "text": "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach",
+          "passed": true,
+          "evidence": "The retry loop is removed (the matches are only the comment 'No job retries tests'). objective ci_has_retry_loop=false. The 3 flaky skips were converted to [[quarantine]] entries with owner, added and expires=2026-10-10, run nightly via --run-quarantined. After expiry the suite refuses to start."
+        }
+      ],
+      "notes": [
+        "CI not run for real",
+        "Replace @OWNER in CODEOWNERS; branch protection",
+        "Quarantines expire 2026-10-10 and the suite then refuses to start",
+        "Homegrown mutation tester and pytest plugin"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.71,
+        "passed": 5,
+        "failed": 2,
+        "total": 7,
+        "time_seconds": 1636.6,
+        "tokens": 98407,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The implementation passes the hidden acceptance tests (graded objectively)",
+          "passed": true,
+          "evidence": "objective.json hidden_acceptance: 43/43 passed."
+        },
+        {
+          "text": "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+          "passed": true,
+          "evidence": "The tests are organised by spec section. There is a 7-row tier boundary table, a 5-row promotion table (lifetime_before, amount, earned, tier_after), a 10-row redeem table (mixing success and RedemptionError rows behind an if branch), and a 9-row yearly_review table. There is an exact-earning @given property and a stateful AccountInvariants machine. objective: 9 parametrize decorators, but also 1 conditional-logic smell."
+        },
+        {
+          "text": "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+          "passed": false,
+          "evidence": "objective.json: tests_added = 52 (> 30); mutation_new_code = 120/122 = 0.984. The conjunction fails on the count."
+        },
+        {
+          "text": "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+          "passed": true,
+          "evidence": "Tier table: 999/1000, 4999/5000, 19999/20000, plus 998->999 short of Silver and 999+1->SILVER. The 500 minimum: (600,599)->500 inclusive, (500,499) rejected, (1000,450) capped below the minimum rejected. Capping: (2000,1250)->1200. The 50% review boundary: Silver 500, Gold 2499/2500, Platinum 9999/10000."
+        },
+        {
+          "text": "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+          "passed": true,
+          "evidence": "AccountInvariants (RuleBasedStateMachine) checks, over random interleavings, that lifetime == sum earned, that balance == lifetime - discounts >= 0, that the tier never drops on purchase, and that a review drops at most one tier."
+        },
+        {
+          "text": "Expected values come from the spec (not computed by calling the implementation)",
+          "passed": false,
+          "evidence": "Partly violated. The table rows and the earning property use spec values (spec.py SPEC_MULTIPLIER as Fractions), but the stateful oracle calls code under test. It asserts `self.account.tier <= tier_for_points(self.lifetime)` using the implementation's tier_for_points, which account._promote itself calls (account.py:43-44). It checks review moves with `after.threshold == max(t.threshold for t in Tier if t < before)` using the implementation's Tier thresholds and ordering. Those expected bounds are computed by running the implementation, not taken from the spec. Mitigation: test_tier_table_matches_spec and the boundary table pin those values separately. Under the burden-of-proof rule this is a fail."
+        },
+        {
+          "text": "The final summary reports what tests were written and what was pruned or consolidated during TDD",
+          "passed": true,
+          "evidence": "FINAL.md: 'Pruned 80 -> 62, nothing lost'. It lists the removed items (new-member test, 4 account-level invalid-purchase rows, 5-row points_for_purchase example table, 8 more rows) and what was kept on purpose, and describes the tests written per file."
+        }
+      ],
+      "notes": [
+        "Balance limit applies to the request (balance 3,000: redeem(3100,1250) raises)",
+        "First mutation run wrong due to stale .pyc (fixed)",
+        ".coverage committed by mistake then untracked",
+        "Once ran pytest in the plugin repo (caches only)"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.71,
+        "passed": 5,
+        "failed": 2,
+        "total": 7,
+        "time_seconds": 822.3,
+        "tokens": 96972,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The implementation passes the hidden acceptance tests (graded objectively)",
+          "passed": true,
+          "evidence": "objective.json hidden_acceptance: 43/43 passed."
+        },
+        {
+          "text": "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+          "passed": true,
+          "evidence": "Mostly organised by partition: a 6-row tier boundary table, redeem success (3) and violation (4) tables, an 8-row review table, invalid-input tables, a Tier-table spec check and two properties (exact earning, sequence invariants). It is the most example-heavy run, though: edge cases 1, 2, 3 and 6, the balance interpretation, the ledger record and read-only state are each a one-off test function. objective: 8 parametrize decorators, smells assertion-roulette 1 and conditional-logic 1. Passes because the tables and properties carry the partitions."
+        },
+        {
+          "text": "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+          "passed": false,
+          "evidence": "objective.json: tests_added = 42 (> 30); mutation_new_code = 126/127 = 0.992. The conjunction fails on the count."
+        },
+        {
+          "text": "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+          "passed": true,
+          "evidence": "Tier table: 999/1000, 4999/5000, 19999/20000. The 500 minimum: (500,10000)->500 at the minimum, (1000,450) capped to 400 rejected. Capping: (2000,1250)->1200, and (2000,850)->800 with balance 900. The 50% review boundary: Silver 499/500, Gold 2499/2500, Platinum 9999/10000."
+        },
+        {
+          "text": "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+          "passed": true,
+          "evidence": "test_invariants_hold_over_any_history (@given over operation lists) asserts 0 <= balance <= lifetime, that the tier never rises on review, that redeeming never changes tier or lifetime, and that the tier never exceeds tier_for_points(lifetime)."
+        },
+        {
+          "text": "Expected values come from the spec (not computed by calling the implementation)",
+          "passed": false,
+          "evidence": "The primary earning oracle reads the code under test. test_points_for_purchase_is_exact_floor computes `exact = Fraction(amount) * tier.multiplier / 100` from the implementation's Tier.multiplier, the same attribute points_for_purchase reads (tiers.py:53). A wrong multiplier would therefore pass the property. Only the separate test_tier_table_matches_spec pins the values. The review table sets up accounts with the implementation's `tier.threshold`, and the invariant bounds the tier with the implementation's tier_for_points. The literal tables are spec-derived, but these oracles are computed by calling the implementation."
+        },
+        {
+          "text": "The final summary reports what tests were written and what was pruned or consolidated during TDD",
+          "passed": true,
+          "evidence": "FINAL.md: 'What I pruned (79 -> 52 cases)'. It lists each removed group and count (6 example rows, 6 validation rows, 6 redemption violations, 8 partition duplicates, 1 merged) and 3 cases kept on purpose, and describes the tests written per file."
+        }
+      ],
+      "notes": [
+        "Balance limit applies to the capped amount",
+        "Bad order totals fail via the 500 minimum",
+        "yearly_review rejects negative/non-int; bools rejected",
+        "Report file blocked by environment; report is FINAL.md"
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.86,
+        "passed": 6,
+        "failed": 1,
+        "total": 7,
+        "time_seconds": 620.0,
+        "tokens": 100154,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The implementation passes the hidden acceptance tests (graded objectively)",
+          "passed": true,
+          "evidence": "objective.json hidden_acceptance: 43/43 passed."
+        },
+        {
+          "text": "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+          "passed": true,
+          "evidence": "There is a 7-row threshold table, a 5-row purchase/promotion table (edge cases 5.1-5.3), redeem success (3) and violation (6) tables, a 6-row review table, an invalid-purchase table, an exact-earning @given property and a @given sequence-invariant property. Only 5.6 and two rejection tests are one-offs. objective: 7 parametrize decorators, 2 property tests, 1 conditional-logic smell."
+        },
+        {
+          "text": "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+          "passed": false,
+          "evidence": "objective.json: tests_added = 36 (> 30); mutation_new_code = 110/113 = 0.973. The conjunction fails on the count."
+        },
+        {
+          "text": "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+          "passed": true,
+          "evidence": "Tier table: 999/1000, 4999/5000, 19999/20000, and 999+100 cents -> SILVER. The 500 minimum: (1000,599)->500 and (1000,450) rejected after capping. Capping: (2000,1250)->1200. The 50% review boundary: Gold 2499/2500 and Silver 499 (the 500 row was pruned), plus Platinum 0->GOLD. The named boundary is present."
+        },
+        {
+          "text": "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+          "passed": true,
+          "evidence": "test_account_invariants_hold_for_any_sequence_of_operations (@given) checks the promotion rule by crossing, that redeem keeps tier and lifetime, that a review moves at most one tier, and that balance == lifetime - redeemed >= 0."
+        },
+        {
+          "text": "Expected values come from the spec (not computed by calling the implementation)",
+          "passed": true,
+          "evidence": "The oracles are independent. SPEC_MULTIPLIER holds Fractions 'independent of how Tier stores its multiplier'. SPEC_THRESHOLD {0,1000,5000,20000} is used for setup and for the crossing model in the invariant property. The table rows are spec literals."
+        },
+        {
+          "text": "The final summary reports what tests were written and what was pruned or consolidated during TDD",
+          "passed": true,
+          "evidence": "FINAL.md: 'I wrote 60 test cases first, then pruned them to 36', with a pruning list (duplicate boundary rows, 5 redeem rows, example and invalid tables, 2 account cases, 1 merged) and per-file test counts."
+        }
+      ],
+      "notes": [
+        "Balance limit applies to requested points",
+        "Zero/negative order total and non-int args raise RedemptionError",
+        "Older ledger tests have their own redundancy; left alone",
+        "Wrote own tools/mutation_check.py; fixed a stale-.pyc bug in it"
+      ]
+    },
+    {
+      "eval_id": 0,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.92,
+        "passed": 12,
+        "failed": 1,
+        "total": 13,
+        "time_seconds": 623.1,
+        "tokens": 127163,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+          "passed": true,
+          "evidence": "Own AST mutator (audit/tools/mutate.py) with 273 mutants; 'The full suite ran against every mutant ... a 175x273 matrix'. It explicitly says coverage (100%) cannot discriminate."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+          "passed": true,
+          "evidence": "'39 tests kill all 264 killable mutants' (exact set cover), recommended ~41 functions. Scope: operators listed in method step 2; caveat 'nothing lost' holds for those 273 mutants plus four hand mutants."
+        },
+        {
+          "text": "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+          "passed": true,
+          "evidence": "'I then re-ran the mutation run with only those 39 selected and confirmed nothing was lost'; the recommended 57 source tests were also re-run and kill all 264."
+        },
+        {
+          "text": "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+          "passed": true,
+          "evidence": "Proposed suite: test_volume_tier_boundaries over qty 1,9,10,49,50,99,100,999; test_tax_rounds_half_cents_up; test_coupon_is_valid_through_its_expiry_date; test_releasing_more_than_reserved_raises."
+        },
+        {
+          "text": "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+          "passed": true,
+          "evidence": "'fold 23 into 7 parametrized tables (tier boundaries, tax per region, coupon types, money inputs, invalid quantities)'; redundant-example clusters named: test_line_total_{one..seven}_units, 6x test_percent_coupon_*, 6x test_reserve_{n}_{widgets,gadgets}."
+        },
+        {
+          "text": "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+          "passed": true,
+          "evidence": "17 implementation-coupled tests to delete ('mock.patch on internal calls, call-count/call-order asserts, reads of _items/_stock/_reserved'); 12 behaviour-preserving refactors broke 16 tests, all in this group."
+        },
+        {
+          "text": "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+          "passed": true,
+          "evidence": "No assertion: 8 (test_cart_smoke etc.); tautology: 2 (test_apply_coupons_is_deterministic, test_quantity_same_twice); time.sleep test named; all three skipped 'flaky' tests analysed (perf always fails, other two always pass)."
+        },
+        {
+          "text": "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+          "passed": true,
+          "evidence": "'Retry loop ... retry-until-green ... If a flaky test ever appears, the loop will hide it. Remove it.' It recommends failing on skips without an issue or expiry, and a skip needs an issue link and an expiry date (an expiring quarantine), plus a nightly/diff-scoped mutation job."
+        },
+        {
+          "text": "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+          "passed": true,
+          "evidence": "Weak pass. The three fix commits (616a220, ea5ee7d, dec6bd0) are identified from git log and their regression tests are force-kept. The fixes were NOT reverted or re-run as faults, so this is name-level accounting only."
+        },
+        {
+          "text": "Did not modify tests/ or shop/",
+          "passed": true,
+          "evidence": "objective.json src_unchanged/tests_unchanged true; git status only untracked audit/ and .grade-smells.json."
+        },
+        {
+          "text": "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+          "passed": true,
+          "evidence": "audit/tools/mutate_sel.py runs the mutation set with selected tests only; the report says the 39-test and 57-test sets were re-run and still kill all 264."
+        },
+        {
+          "text": "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+          "passed": true,
+          "evidence": "Hand mutants H1-H4: fixed-before-percent coupon order, percentages not compounding, floats without str(), and reserved() miscounting orders. These found that the 39-test minimum misses H1-H3, so the recommended set was enlarged."
+        },
+        {
+          "text": "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion",
+          "passed": false,
+          "evidence": "The recommended order is 'Delete the 118 tests in per_test_verdicts.csv marked DELETE', then re-run the mutation job. It proposes no probation, nightly holding tier or trial period for removed tests."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.85,
+        "passed": 11,
+        "failed": 2,
+        "total": 13,
+        "time_seconds": 606.3,
+        "tokens": 114751,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+          "passed": true,
+          "evidence": "Own AST mutator, 359 mutants; 'The full suite ran once per mutant, recording which individual tests failed. That gives a 172-test by 359-mutant matrix.' audit-tools/matrix.json present."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+          "passed": true,
+          "evidence": "'39 of the 175 tests ... 39 is the minimum catching all 350' via exact branch-and-bound set cover. It lists the mutation operators and says 'it's only as good as the mutation operators'."
+        },
+        {
+          "text": "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+          "passed": true,
+          "evidence": "'Verification. I re-ran the mutation run with only the 39 kept tests and got the same 350 kills.' (matrix_keep.json in outputs/audit-tools)."
+        },
+        {
+          "text": "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+          "passed": true,
+          "evidence": "The keep list includes test_volume_discount_starts_at_exactly_ten_units, test_volume_tier_boundaries_at_fifty_and_one_hundred, test_tax_rounds_half_cents_up (fix 616a220), test_coupon_is_valid_through_its_expiry_date (ea5ee7d), and test_releasing_more_than_reserved_raises (dec6bd0)."
+        },
+        {
+          "text": "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+          "passed": true,
+          "evidence": "'73 tests in 16 clusters', with examples test_line_total_one_unit/_two_units/... (12), test_tax_ca_100/ca_200/ny_100 (8), test_add_two_units/... (7); recommends a region tax table and a volume-tier boundary table."
+        },
+        {
+          "text": "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+          "passed": true,
+          "evidence": "'11 tests use unittest.mock to check how the code works' (call order of _validate/volume_discount_rate/_round_cents) and 7 read private attributes. Four behaviour-neutral refactors broke 10 such tests while all behaviour tests passed."
+        },
+        {
+          "text": "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+          "passed": true,
+          "evidence": "CI table: 8 no-assertion tests, 14 type-only or x == x, the time.sleep(0.2) test, and 3 skipped-forever 'flaky' tests analysed (perf always fails, two always pass)."
+        },
+        {
+          "text": "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+          "passed": true,
+          "evidence": "'Retry until green ... A flaky or order-dependent failure never turns CI red'; recommendation: 'Run pytest ... once. If a test turns out to be genuinely flaky, quarantine it by name with an owner and an expiry date.'"
+        },
+        {
+          "text": "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+          "passed": true,
+          "evidence": "Weak pass. The three regression tests are bolded as 'regression test for a bug that actually shipped and was fixed (see git log)', and 'each is the only test that catches its bug' comes from mutant proxies. The fix commits were not reverted."
+        },
+        {
+          "text": "Did not modify tests/ or shop/",
+          "passed": true,
+          "evidence": "objective.json src_unchanged/tests_unchanged true; git status only untracked TEST_AUDIT.md and .grade-smells.json."
+        },
+        {
+          "text": "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+          "passed": true,
+          "evidence": "'re-ran all 359 against only the 39: exactly the same 350, nothing lost.'"
+        },
+        {
+          "text": "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+          "passed": false,
+          "evidence": "Only AST-generated mutants were used (comparison flips, constant shifts, ROUND_HALF_UP->EVEN, etc.). No hand-written domain faults such as coupon ordering, tax-before-discount or non-atomic reserve_all. It also missed the mock-only per-unit rounding gap that the domain-fault runs found."
+        },
+        {
+          "text": "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion",
+          "passed": false,
+          "evidence": "Order: 'Collapse the clone clusters ... and remove the 136. Re-run the mutation check'. That is immediate removal with no probation or trial tier."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.92,
+        "passed": 12,
+        "failed": 1,
+        "total": 13,
+        "time_seconds": 661.0,
+        "tokens": 128963,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+          "passed": true,
+          "evidence": "Own AST mutator, 409 mutants; 'For each mutant I ran the whole suite and recorded which tests failed'; per-test kill counts in test_dispositions.csv."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+          "passed": true,
+          "evidence": "Greedy set cover plus prune gives a 42-test subset that 'kills everything the full suite kills'; recommends 40 existing + 7 new = 47. Scope: the listed operator set plus 9 hand-written faults. The 42 is greedy, not proven minimal."
+        },
+        {
+          "text": "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+          "passed": true,
+          "evidence": "'Certificate for the proposed suite': the 47-test suite (40 kept + 7 additions) was assembled in a scratch copy and the full mutation matrix re-run: 398/409 'incl. every one caught today'. Caveat: the check covers the proposed suite with its additions, not the 40 existing tests alone."
+        },
+        {
+          "text": "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+          "passed": true,
+          "evidence": "Proposed suite: '10-unit tier start, 50/100 boundaries', 'expiry through the expiry date (regression)', 'half-up rounding (regression)', 'over-release (regression)'."
+        },
+        {
+          "text": "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+          "passed": true,
+          "evidence": "48 copy-paste clones (test_line_total_{one..seven}_units, 10 single-coupon examples, 6 reserve_*_widgets); 21 tests folded into 4 new tests, including a 4-row tax-by-region table replacing 15 per-region tests."
+        },
+        {
+          "text": "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+          "passed": true,
+          "evidence": "'11 mock internal helpers ... 6 read private fields'; 8 behaviour-preserving refactors broke 14 tests, all mock or private-state tests; none of the keepers broke."
+        },
+        {
+          "text": "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+          "passed": true,
+          "evidence": "'13 type-only or always-true (result == result) ... 8 assert nothing'; time.sleep(0.2) on synchronous code; 3 skipped 'flaky' tests analysed (perf always fails; others always pass)."
+        },
+        {
+          "text": "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+          "passed": true,
+          "evidence": "'Retry-until-green (most serious) ... any intermittent failure is masked ... If a test ever becomes genuinely flaky, quarantine it by name with an owner and an expiry date, rather than retrying everything.'"
+        },
+        {
+          "text": "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+          "passed": true,
+          "evidence": "Weak pass. 'The three real bug fixes in git history each came with a proper regression test, and all three are kept' (commits named). The fixes were not reverted as faults; the 9 hand-written faults do not include them."
+        },
+        {
+          "text": "Did not modify tests/ or shop/",
+          "passed": true,
+          "evidence": "objective.json src_unchanged/tests_unchanged true; git status only untracked audit/ and .grade-smells.json."
+        },
+        {
+          "text": "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+          "passed": true,
+          "evidence": "The proposed suite was built in a scratch copy, and the mutation matrix, refactors and faults were re-run against it; 'The numbers in the table above come from those actual runs'."
+        },
+        {
+          "text": "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+          "passed": true,
+          "evidence": "audit/tools/faults.json has 9 hand-written faults (F1 percent-first ordering removed, F2 no compounding, F7 checkout taxes pre-discount subtotal, F8 reserved() counts only first order, F9 tiers smallest-first ...). They were used to justify keepers that the mutation tool alone marked redundant."
+        },
+        {
+          "text": "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion",
+          "passed": false,
+          "evidence": "Order: 'Delete the 3 skipped tests, the 11 mock-coupled tests ... That removes 41 tests', then collapse the rest and rerun mutate.py. No probation or trial tier; it says 'No PR/nightly tiering is needed'."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.62,
+        "passed": 5,
+        "failed": 3,
+        "total": 8,
+        "time_seconds": 542.6,
+        "tokens": 110301,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+          "passed": false,
+          "evidence": "objective.json pr_tier: '97 passed' with nothing deselected, since there is no probation/nightly tier. 97 collected tests exceeds 60. The agent counts 44 test functions, but the PR tier runs 97 test cases."
+        },
+        {
+          "text": "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+          "passed": false,
+          "evidence": "The agent's comparison (outputs/mutation-before.json vs mutation-after.json, 400 own mutants) reports 'no mutant killed by the first suite survives the second'. The independent grader contradicts this: objective.json lost_kills=['shop/tax.py:8 const 0.08875 -> 0.08876'], lost_kill_count=1. The agent's tool only shifts rates by 0.01, so its comparison could not see the loss. The evidence of no lost detection is false."
+        },
+        {
+          "text": "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+          "passed": true,
+          "evidence": "objective.json: history_mutants_killed=3/3; regression tests for expiry, half-up rounding and over-release are present in ws/tests."
+        },
+        {
+          "text": "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+          "passed": true,
+          "evidence": "Parametrized tables: test_pricing.py (volume tiers 8 rows, line_total 9 rows, rejects 6 rows); test_tax.py (2); test_money.py (3); test_discounts.py (2); test_cart.py (2, including test_checkout_totals end-to-end table). There are well over 2 clusters and no Hypothesis property."
+        },
+        {
+          "text": "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+          "passed": true,
+          "evidence": "test_pricing.py::test_volume_discount_tiers_start_exactly_at_their_threshold has rows 9/10/49/50/99/100/999 (PR tier). test_discounts.py::test_coupon_is_valid_through_its_expiry_date, test_tax.py::test_tax_rounds_half_cents_up (plus test_money.py::test_round_cents_is_half_up) and test_inventory.py::test_releasing_more_than_reserved_raises are all present."
+        },
+        {
+          "text": "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+          "passed": false,
+          "evidence": "Nothing was staged reversibly: there is no probation or nightly tier, and 175 -> 97 cases were deleted in one commit (4d69a4b). The deletions rest on a whole-suite mutation comparison. The grader showed that comparison was too weak: a removed test's detection of the NY rate constant (0.08875 -> 0.08876) was lost, and with no probation window the loss is permanent."
+        },
+        {
+          "text": "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+          "passed": true,
+          "evidence": "objective smells_after={} and .grade-smells.json by_kind={}. No sleep, skip, xfail or 'assert True' in ws/tests. The report says the sleep test, 3 skips and the no-assert/x==x tests were removed."
+        },
+        {
+          "text": "Did not modify the shop/ source code",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 0.88,
+        "passed": 7,
+        "failed": 1,
+        "total": 8,
+        "time_seconds": 1505.2,
+        "tokens": 117059,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+          "passed": false,
+          "evidence": "objective.json pr_tier: '103 passed' with nothing deselected, since there is no tier split. 103 is more than 60. The agent counts 40 test functions, but the fast suite runs 103 cases."
+        },
+        {
+          "text": "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+          "passed": true,
+          "evidence": "Agent artifacts outputs/kills_before.json and kills_after.json (395 mutants, per-mutant killed_by) plus kills_after_rerun.json; the report states 'Mutants killed before but not after: 0'. Confirmed by objective.json: kills_before=274, kills_after_pr_tier=278, lost_kills=[]."
+        },
+        {
+          "text": "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+          "passed": true,
+          "evidence": "objective.json: history_mutants_killed=3/3; regression tests for expiry, half-up rounding and over-release are present in ws/tests."
+        },
+        {
+          "text": "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+          "passed": true,
+          "evidence": "Parametrized tables in test_pricing.py (4), test_money.py (3), test_tax.py (2), test_discounts.py (2), test_cart.py and test_checkout.py (test_checkout_totals). There are also Hypothesis @given properties in test_discounts.py and test_checkout.py."
+        },
+        {
+          "text": "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+          "passed": true,
+          "evidence": "test_pricing.py::test_volume_discount_tiers has rows 9/10/49/50/99/100/999. test_discounts.py::test_coupon_is_valid_through_its_expiry_date (on the day and the day after) is present. Tax half-up is covered by test_tax.py::test_tax_for row ('2.00','CA' -> 0.15, 'half-up, not banker's (regression)') and test_money.py::test_round_cents_is_half_up. test_inventory.py::test_releasing_more_than_reserved_raises is present."
+        },
+        {
+          "text": "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+          "passed": true,
+          "evidence": "There is no reversible staging: all removals were committed in 9d15d66. Each removal is still certified by an existing artifact. kills_before.json records, for every one of the 395 mutants, which of the original 175 tests kill it, and kills_after.json shows every one of those mutants still killed, which is a per-removed-test witness. The report says the matrix showed none of the 22 zero-signal tests killed anything unique. The grader confirms 0 lost. This is not deletion on faith, but it passes only because the assertion accepts a certificate in place of staging."
+        },
+        {
+          "text": "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+          "passed": true,
+          "evidence": "objective smells_after={}, .grade-smells.json by_kind={}. No sleep, skip, xfail or 'assert True' in ws/tests."
+        },
+        {
+          "text": "Did not modify the shop/ source code",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.88,
+        "passed": 7,
+        "failed": 1,
+        "total": 8,
+        "time_seconds": 833.0,
+        "tokens": 114386,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+          "passed": false,
+          "evidence": "objective.json pr_tier: '109 passed' with nothing deselected, since there is no tier split. 109 is more than 60. The agent counts 42 test functions, but the fast suite runs 109 cases."
+        },
+        {
+          "text": "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+          "passed": true,
+          "evidence": "Agent artifacts outputs/kill-before.json and kill-after.json (363 mutants, per-mutant killed_by); the report states 'lost: 0 gained: 3', and a mid-rewrite loss (is_applicable with a string subtotal) was caught and fixed. Confirmed by objective.json: kills_before=274, kills_after_pr_tier=277, lost_kills=[]."
+        },
+        {
+          "text": "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+          "passed": true,
+          "evidence": "objective.json: history_mutants_killed=3/3; regression tests for expiry, half-up rounding and over-release are present in ws/tests."
+        },
+        {
+          "text": "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+          "passed": true,
+          "evidence": "Parametrized tables in test_pricing.py (4), test_tax.py (3), test_money.py (3), test_discounts.py (2), test_cart.py (2) and test_inventory.py (1), plus a Hypothesis property in test_checkout_flow.py."
+        },
+        {
+          "text": "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+          "passed": true,
+          "evidence": "test_pricing.py::test_volume_discount_tiers_start_exactly_at_10_50_100 has rows 9/10/49/50/99/100/999, and the line_total table also has 50 and 100. test_discounts.py::test_coupon_is_valid_through_its_expiry_date, test_tax.py::test_tax_rounds_half_cents_up and test_inventory.py::test_releasing_more_than_reserved_raises are all present."
+        },
+        {
+          "text": "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+          "passed": true,
+          "evidence": "There is no reversible staging: everything was removed in 1c3ff92. Removals are certified by existing artifacts: kill-before.json (per-mutant killed_by over the original tests) against kill-after.json shows 0 lost, and the report says 'Every deletion below is covered by the mutant-level comparison above (0 lost)'. The grader confirms 0 lost. This passes on the certificate branch of the assertion only."
+        },
+        {
+          "text": "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+          "passed": true,
+          "evidence": "objective smells_after={'conditional-logic': 1} (test_checkout_flow.py::test_checkout_money_invariants). That kind is not in scope for this assertion. No tautology, no-assertion, sleep or skipped smells remain, and there is no sleep, skip or xfail in ws/tests."
+        },
+        {
+          "text": "Did not modify the shop/ source code",
+          "passed": true,
+          "evidence": "objective.json src_unchanged=true."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 419.2,
+        "tokens": 77054,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+          "passed": true,
+          "evidence": "Ran 'npx stryker run --disableBail' (perTest config) and saved reports/mutation/mutation-full-matrix.json. matrix.py computes per-test kills, unique kills and an exact branch-and-bound minimum cover."
+        },
+        {
+          "text": "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+          "passed": true,
+          "evidence": "'its per-test counts are unusable because Stryker stops at the first test that catches each change. Re-ran with --disableBail'. It kept both mutation-bail.json and mutation-full-matrix.json."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+          "passed": true,
+          "evidence": "'exactly 10 tests, only one such set' for Stryker's 75 kills. With 16 hand-written business faults, 21 existing tests are needed, consolidated into 15 functions. FINAL: 'You need about 15 tests'."
+        },
+        {
+          "text": "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+          "passed": true,
+          "evidence": "The keep table has tier-boundary table 9/10/49/50/99/100 (#3), 999/1000 (#2), min spend inclusive (#13), percentages before fixed (#14) and discount never exceeds subtotal (#15)."
+        },
+        {
+          "text": "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+          "passed": true,
+          "evidence": "'implementation-coupled (2): private lines via (c as any) and a spy counting internal percentOf calls'."
+        },
+        {
+          "text": "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+          "passed": true,
+          "evidence": "It flags expect(true).toBe(true), the value compared with itself, the no-assertion test, the snapshot, the 50 ms sleep, and the skipped 'flaky' test (always fails, 60 items vs cap 50)."
+        },
+        {
+          "text": "Did not modify src/ or test/",
+          "passed": true,
+          "evidence": "objective.json: src_unchanged=true, tests_unchanged=true. git status shows only '?? TEST-AUDIT.md' at the repo root."
+        },
+        {
+          "text": "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+          "passed": true,
+          "evidence": "probe.sh runs each hand-written fault against the full suite and a named subset via 'vitest run -t' in a scratch copy (scratchpad/probe-ts-audit, linked to this run's node_modules). The probe table has a 'Proposed 21' column, and TEST-AUDIT says 'I verified this by running the 21 source tests with vitest -t'. Domain faults exist in no recorded matrix, so that column could only come from running them. There was no separate Stryker re-run on the 21."
+        },
+        {
+          "text": "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut",
+          "passed": true,
+          "evidence": "16 hand-written business-rule faults (tax rates, discount cap, coupon order, sum vs max, integer/negative checks, rounding, tiers, MAX_LINES) were run against the full suite, the 10 and the 21. It shows the 10 would miss 9 real regressions and sizes the keep set from that."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 2,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 192.9,
+        "tokens": 66823,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+          "passed": true,
+          "evidence": "Ran 'npm run mutate -- --disableBail' for a 66x77 test-by-mutant table (ws/reports/mutation/mutation.json: 57/77 multi-killer mutants). The exact minimum cover is in scratch/matrix.py."
+        },
+        {
+          "text": "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+          "passed": true,
+          "evidence": "'npm run mutate -- --disableBail for a full 66x77 test-by-mutant table (bail records only the first killer)'."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+          "passed": true,
+          "evidence": "'Ten tests already catch every bug Stryker can plant ... Exact smallest subset catching every caught mutant: unique, 10 tests', relative to Stryker. The recommendation is '~14' after business-rule additions."
+        },
+        {
+          "text": "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+          "passed": true,
+          "evidence": "The 10 include tier boundaries, 999/1000 and min spend inclusive. The ~14 add 'percentages before fixed' and 'discount never exceeds subtotal'."
+        },
+        {
+          "text": "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+          "passed": true,
+          "evidence": "'Brittle (3): (c as any).lines private field; vi.spyOn counting percentOf calls; snapshot duplicating ...'."
+        },
+        {
+          "text": "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+          "passed": true,
+          "evidence": "It flags 'can never fail (3): expect(true).toBe(true), percentOf compared with itself, no-assertion remove test', the snapshot, the 'pointless 50 ms sleep', and the skipped 'flaky' test that always fails."
+        },
+        {
+          "text": "Did not modify src/ or test/",
+          "passed": true,
+          "evidence": "objective.json: src_unchanged=true, tests_unchanged=true. git status shows only '?? test-audit/'."
+        },
+        {
+          "text": "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+          "passed": true,
+          "evidence": "'Checked by re-running Stryker with only those 10 (temporary config, deleted): same 75/77'. ws/reports/mutation/minset.json confirms 10 tests, 75/77 killed. Caveat: only the Stryker-core 10 was re-run. The 4 business-rule additions in the ~14 were never checked against any fault."
+        },
+        {
+          "text": "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut",
+          "passed": true,
+          "evidence": "'Stryker never changes numbers or reorders code; also keep tax-rate-per-region ..., percentages before fixed, discount never exceeds subtotal'. This was accounted for by reasoning only: no business-rule faults were injected. The reasoning missed subtotal sum-vs-largest, so the ~14 drop 'subtotal sums every line' and 'subtotal of two lines'. Passed because the category was explicitly accounted for and changed the recommendation, but it is the weakest pass of the six."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 3,
+      "result": {
+        "pass_rate": 0.89,
+        "passed": 8,
+        "failed": 1,
+        "total": 9,
+        "time_seconds": 507.8,
+        "tokens": 88449,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+          "passed": true,
+          "evidence": "Ran 'npx stryker run --disableBail'. mutation-full-matrix.json was analysed by kill_matrix.py (per-test kills, unique kills, exact minimum)."
+        },
+        {
+          "text": "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+          "passed": true,
+          "evidence": "TEST-AUDIT Method 3: '--disableBail ... records every test that kills each mutant, not just the first'. It kept mutation-bail.json vs mutation-full-matrix.json."
+        },
+        {
+          "text": "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+          "passed": true,
+          "evidence": "'You need 17 of your 66 tests', 10 for Stryker's 75 kills plus 7 sole catchers of 26 hand-written mutants. Scope is stated (Stryker JS mutators miss literals, reordering and clamps)."
+        },
+        {
+          "text": "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+          "passed": true,
+          "evidence": "The keep list has 'tier boundaries inclusive' (noted as the only test pinning 9/10, 49/50, 99/100), '999/1000', 'min spend inclusive', 'percentages before fixed' and 'discount never exceeds subtotal'."
+        },
+        {
+          "text": "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+          "passed": true,
+          "evidence": "'implementation-dependent: private lines via as any, spy on percentOf once, ...'. TEST-AUDIT has an 'Implementation-coupled' table."
+        },
+        {
+          "text": "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+          "passed": true,
+          "evidence": "It flags true toBe true, percentOf vs itself, the no-assertion remove test, the inline snapshot, the 50 ms sleep, and the skipped 'flaky' test (confirmed deterministic by unskipping in a scratch copy)."
+        },
+        {
+          "text": "Did not modify src/ or test/",
+          "passed": true,
+          "evidence": "objective.json: src_unchanged=true, tests_unchanged=true. git status shows only '?? TEST-AUDIT.md'."
+        },
+        {
+          "text": "Verified the recommended reduced set empirically (re-ran Stryker and/or domain faults against the kept tests alone), not only computed it from recorded data",
+          "passed": false,
+          "evidence": "verify_keep_set.py only intersects keep_set.json with the recorded killedBy from mutation-full-matrix.json and literal_mutants.json. Neither Stryker nor the literal mutants were re-run against the 17 alone. FINAL's 'With only the 17: 75/77 Stryker and 23/26 extra' is computed, not measured. The re-run is listed as a future step."
+        },
+        {
+          "text": "Accounted for business-rule faults that Stryker's operators cannot produce (e.g. rates, thresholds, rule order) before recommending the cut",
+          "passed": true,
+          "evidence": "26 hand-written mutants (tax rates, tier thresholds/rates, MAX_LINES, 0.5 rounding constant, 999 limit, coupon order, discount cap, integer check) were each run against the full suite in a sandbox (literal_mutants.py/.txt). This added 7 keepers (10 -> 17). The set had no subtotal sum-vs-largest fault."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9567,
+        "stddev": 0.0639,
+        "min": 0.86,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 950.3333,
+        "stddev": 416.3432,
+        "min": 420.3,
+        "max": 1743.8
+      },
+      "tokens": {
+        "mean": 151711.9333,
+        "stddev": 21861.5846,
+        "min": 110179,
+        "max": 181838
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.8667,
+        "stddev": 0.1104,
+        "min": 0.62,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 792.1133,
+        "stddev": 391.2116,
+        "min": 192.9,
+        "max": 1636.6
+      },
+      "tokens": {
+        "mean": 111176.4,
+        "stddev": 23507.465,
+        "min": 66823,
+        "max": 147305
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.09",
+      "time_seconds": "+158.2",
+      "tokens": "+40536"
+    }
+  },
+  "notes": [
+    "Pass rate 96% +/- 6% with the skills vs 87% +/- 11% without (+9 points); the skill arm is also less variable. Every with-skill run of shop-audit and shop-reduce scored 100%.",
+    "Discriminating assertions: shop-audit #12 domain faults and #13 reversible staging (3/3 vs 0/3); shop-reduce #1 PR-tier size (49-57 vs 97-109 collected items) and #2/#6 (a baseline lost the NY tax-rate kill under the grader's mutants, which its own tool missed); loyalty #6 spec oracles (3/3 vs 1/3).",
+    "Non-discriminating: ts-audit is identical in both arms (26/27); strong baselines also build kill matrices and set covers. constitution-setup #2-#6 and #8 and loyalty #1, #2, #4, #5, #7 pass everywhere; loyalty #3 (<=30 cases) fails everywhere. Iteration 2 sharpens these in evals.json.",
+    "Objective numbers matter more than the pass rates: shop-reduce PR tier 49/55/57 with 0 lost kills and 3/3 history bugs (with) vs 97/103/109 with one lost money kill (without); loyalty 43/43 hidden tests in all six runs, 34-41 cases added (with) vs 36-52 (without), no smells (with) vs at least one per baseline.",
+    "Cost: +36% tokens (152k vs 111k mean) and +20% time (950s vs 792s). Largest in loyalty-greenfield (1.7x tokens, 1.5x time), where the skill plans partitions, generates covering rows and triages survivors.",
+    "Skill defects found and fixed in the skills after grading: a constitution run left 5 real money survivors untriaged, so any PR touching discounts.py was blocked on day one (the skill now requires a PR-gate check on a critical file at R4+); a loyalty run pruned covering-array rows below the planned strength (the skill now says pruning never lowers the plan's t).",
+    "Grader-side: ci_has_retry_loop in grade.py false-positives on comments saying 'no retries' (4/6 constitution runs); graders verified by hand. The aggregator read tokens from grading.json output_chars instead of timing.json; patched locally."
+  ]
+}

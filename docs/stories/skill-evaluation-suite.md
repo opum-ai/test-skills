@@ -153,6 +153,9 @@ generates covering rows and triages survivors.
   tokens from `grading.json` output_chars whenever a grader filled in timing; it was patched
   locally to read `timing.json`.
 
+The aggregated `benchmark.json`/`benchmark.md` and each skill's `run_loop` result are in
+`evals/benchmarks/iteration-1/`.
+
 **Trigger descriptions (`run_loop`).** The loop used a 60/40 train/test holdout and 3 runs per
 query, in a stub project root.
 

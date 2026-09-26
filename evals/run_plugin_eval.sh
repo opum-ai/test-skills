@@ -48,6 +48,12 @@ if ! "$PY" -c "import pytest, coverage, hypothesis" 2>/dev/null; then
 fi
 PYBIN="$(dirname "$(command -v "$PY")")"; export PATH="$PYBIN:$PATH"
 
+# Task agents run inside plugin eval's OS sandbox, which can't use your installed toolchains;
+# build the one each case's scaffold stages into the run (see evals/eval_toolchain.sh).
+if [[ " ${SUITES[*]} " == *" task "* ]]; then
+  "$ROOT/evals/eval_toolchain.sh" >/dev/null || { echo "eval toolchain build failed" >&2; exit 1; }
+fi
+
 # The TypeScript case copies the fixture's node_modules (git-ignored) into its workspace.
 if [[ " ${SUITES[*]} " == *" task "* && ! -d "$ROOT/evals/fixtures/ts-bloated-cart/node_modules" ]]; then
   (cd "$ROOT/evals/fixtures/ts-bloated-cart" && npm ci --silent) || { echo "npm ci failed for ts-bloated-cart" >&2; exit 1; }
@@ -65,7 +71,9 @@ worst=0
 for s in "${SUITES[@]}"; do
   case "$s" in
     trigger) ARGS=(--tag trigger --ablation none -j 8) ;;
-    task)    ARGS=(--tag task -j 5) ;;             # default ablation: with and without the plugin
+    # Task agents must run the suite and edit files. plugin eval gates Bash/Write/Edit behind an
+    # operator grant, whatever the case's allowed_tools say; without it every agent is read-only.
+    task)    ARGS=(--tag task -j 5 --allow-tools Bash Write Edit) ;;   # default ablation: with and without
   esac
   echo "$s running" >> "$DIR/status"
   echo "[$(date +%T)] $s -> $DIR/$s.log"

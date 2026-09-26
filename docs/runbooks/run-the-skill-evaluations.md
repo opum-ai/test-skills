@@ -75,6 +75,23 @@ claims. There are two suites:
      - `DONE`: written last.
    - **Monitoring.** Another session can watch `status` and the trace's growth, then review
      the JSON once `DONE` appears.
+   - **Task agents run in plugin eval's OS sandbox, which cannot be configured.** Inside it:
+     - Bash, Write and Edit need an operator grant, so the runner passes
+       `--allow-tools Bash Write Edit`. Without it, every agent is read-only and the scores mean
+       nothing (the first run, 2026-09-26, was invalid for this reason).
+     - The run's own home replaces yours, and your real home is unreadable.
+     - Executables outside the run are denied, including `/tmp`, `/Volumes` and a uv venv
+       whose interpreter lives in `~/.local`.
+     - The `/usr/bin` xcrun shims (`git`, `python3`) fail on an unwritable cache.
+
+     `evals/eval_toolchain.sh` therefore builds a relocatable CPython with the pinned deps at
+     `/tmp/test-skills-toolchain`, once per requirements change. Each task scaffold then
+     calls `evals/stage_toolchain.sh`, which runs outside the sandbox. That script:
+     - clones the toolchain into the run's home as `.tc/`;
+     - adds wrappers for `python`, `git` (a real binary), and `npm`/`npx` (npm copied out of
+       nvm);
+     - prepends them to `PATH` through the run home's `.zshenv`.
+     The workspace itself is untouched.
    - **Arms.** Trigger cases run without a baseline arm. Task cases run with and without the
      plugin. Reports stay local unless you pass `--publish-report`.
    A run that hits `max_turns` after loading the skill counts as a genuine pass. So does a

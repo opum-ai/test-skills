@@ -70,7 +70,8 @@ def main():
         write(d / "prompt.md", "---\n" + f"description: {yq(e['name'])}\ntags: [task, {e['expected_skill']}]\nruns: 1\nmax_turns: 200\n"
               "timeout_seconds: 3600\nallowed_tools: [Read, Glob, Grep, Skill, Bash, Write, Edit]\n---\n\n" + e["prompt"] + "\n")
         write(d / "scaffold.sh", SCAFFOLD.replace("py-bloated-shop", e["fixture"]).replace("../../../../", "../../../")
-              + '[ -x ./make_history.sh ] && ./make_history.sh >/dev/null || (git init -q && git add -A && git -c user.email=e@e -c user.name=e commit -qm init)\n', 0o755)
+              + '[ -x ./make_history.sh ] && ./make_history.sh >/dev/null || (git init -q && git add -A && git -c user.email=e@e -c user.name=e commit -qm init)\n'
+              + '"$(dirname "$0")/../../../stage_toolchain.sh"   # python/git/npx that work inside the eval sandbox\n', 0o755)
         for i, a in enumerate(e["assertions"], 1):
             slug = re.sub(r"[^a-z0-9]+", "-", a.lower()).strip("-")[:48].rstrip("-")
             write(d / "graders" / f"a{i:02d}-{slug}.md", "---\ntype: llm\nfocus: last_message\n---\n\n"

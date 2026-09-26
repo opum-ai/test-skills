@@ -5,6 +5,6 @@ focus: last_message
 
 PASS if the agent's final report states or shows the following with specifics (names, numbers, files or commands):
 
-Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite
+States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)
 
 FAIL if absent, vague, or contradicted.

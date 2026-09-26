@@ -5,6 +5,6 @@ focus: last_message
 
 PASS if the agent's final report states or shows the following with specifics (names, numbers, files or commands):
 
-The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes
+Flags the spy call-count test and the private-state (as any) test as implementation-coupled
 
 FAIL if absent, vague, or contradicted.

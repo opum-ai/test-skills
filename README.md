@@ -145,7 +145,7 @@ docs/                          OKF bundle: epic, stories, ADRs, rigor spec, rese
 ```bash
 python -m pytest -q tests                        # engine suite (needs pytest, coverage, hypothesis)
 python3 evals/make_cases.py                      # regenerate claude plugin eval cases
-claude plugin eval . --tag trigger --scaffold --ablation none -j 8 --threshold 0
+evals/run_plugin_eval.sh all                    # claude plugin eval: trigger + task suites, logs in /tmp/test-skills-plugin-eval/latest
 python3 evals/grade.py <case> <workspace> --python <py>   # objective grading of a run
 claude plugin validate . && lore check
 ```

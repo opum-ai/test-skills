@@ -1,0 +1,16 @@
+{
+  "name": "ts-bloated-cart",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "mutate": "stryker run"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "4.1.11"
+  }
+}

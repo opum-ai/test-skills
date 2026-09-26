@@ -16,7 +16,8 @@ from typing import Dict, List
 ASSERT_CALL = re.compile(r"^(assert\w*|expect\w*|should\w*|verify\w*|check\w*)$", re.I)
 MOCK_NAMES = {"patch", "Mock", "MagicMock", "AsyncMock", "create_autospec", "mocker", "monkeypatch"}
 PUBLIC_UNDERSCORE = {"_replace", "_asdict", "_fields", "_make", "_field_defaults"}   # namedtuple API
-JS_TEST = re.compile(r"^\s*(?:it|test)(?:\.each\([^)]*\))?\s*\(\s*(['\"`])(.+?)\1", re.M)
+JS_TEST = re.compile(r"^\s*(x?it|x?test|it\.skip|test\.skip|it\.only|test\.only)(?:\.each\([^)]*\))?"
+                     r"\s*\(\s*(['\"`])(.+?)\2", re.M)
 
 
 def _files(paths: List[str]):
@@ -165,28 +166,42 @@ def js_smells(path: str) -> List[dict]:
     with open(path, errors="replace") as f:
         text = f.read()
     out = []
-    starts = [(m.start(), m.group(2)) for m in JS_TEST.finditer(text)]
-    for i, (pos, name) in enumerate(starts):
+    starts = [(m.start(), m.group(3), m.group(1)) for m in JS_TEST.finditer(text)]
+    for i, (pos, name, kind) in enumerate(starts):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(text)
         body = text[pos:end]
         line = text.count("\n", 0, pos) + 1
-        tid = f"{path}::{name}"
         end_line = text.count("\n", 0, end) + 1
+        tid = f"{path}::{name}"
         rec = lambda s, d="": out.append({"file": path, "test": tid, "line": line, "end": end_line,  # noqa: E731
                                           "smell": s, "detail": d})
-        if not re.search(r"\b(expect|assert|should)\w*\s*[.(]", body):
-            rec("no-assertion", "no expect/assert in the test body")
+        asserts = re.findall(r"\b(?:expect|assert)\w*\s*[.(]", body)
+        if not asserts:
+            rec("no-assertion", "no expect/assert in the test body (Art. IV: every test must be able to fail)")
         if re.search(r"toMatch(Inline)?Snapshot", body):
             rec("snapshot", "snapshot assertion: review as a change detector")
         if re.search(r"setTimeout|\bsleep\(|waitForTimeout", body):
             rec("sleep", "timer-based waiting")
         n_mock = len(re.findall(r"\b(jest|vi)\.(mock|spyOn|fn)\b|sinon\.", body))
         if n_mock >= 3:
-            rec("mock-heavy", f"{n_mock} mocks/spies")
-        if re.search(r"expect\(\s*true\s*\)\.toBe\(\s*true\s*\)", body):
-            rec("tautology", "expect(true).toBe(true)")
-        if re.search(r"\.(skip|todo)\s*\(", body[:40]):
-            rec("skipped", "skipped test")
+            rec("mock-heavy", f"{n_mock} mocks/spies (Art. VI: mock only at architectural boundaries)")
+        elif n_mock:
+            rec("mocks", f"{n_mock} mock(s)/spies")
+        # Same literal or same plain name on both sides (calls are fine: that is a determinism check).
+        if re.search(r"expect\(\s*(true|false|\d+|[A-Za-z_$][\w$.]*)\s*\)\.(toBe|toEqual)\(\s*\1\s*\)", body):
+            rec("tautology", "an expectation that cannot fail")
+        if re.search(r"as any\)\s*\.\s*\w|\[['\"]_?\w+['\"]\]\s*\)?\s*\.", body) or \
+                re.search(r"toHaveBeenCalled(Times|With)?\b|toHaveBeenNthCalledWith", body):
+            rec("implementation-coupled", "reaches private state or asserts internal calls (Art. VI)")
+        weak = re.findall(r"expect\(\s*typeof\b|\.(toBeDefined|toBeTruthy|not\.toBeNull|not\.toBeUndefined)\(", body)
+        if asserts and weak and len(weak) >= len(asserts):
+            rec("weak-assertion", "only type/existence/truthiness checks")
+        if kind in ("xit", "xtest", "it.skip", "test.skip"):
+            rec("skipped", "skipped test: fix or delete (Art. XI)")
+        # An if whose line or next line asserts, or a loop that asserts on its own line; a loop that
+        # only builds data is fine.
+        if re.search(r"^\s*if\b[^\n]*(expect|\n[^\n]*expect)|^\s*(for|while)\b[^\n]*expect", body, re.M):
+            rec("conditional-logic", "control flow around an assertion")
     return out
 
 

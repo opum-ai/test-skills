@@ -162,6 +162,8 @@ def main(argv) -> int:
     s = sub.add_parser("import-stryker", help="convert a Stryker mutation-testing-report JSON")
     s.add_argument("report")
     s.add_argument("-o", "--out", default=".tmx/matrix.json")
+    s.add_argument("--allow-bail", action="store_true", help="accept a report run without disableBail")
+    s.add_argument("--allow-low-score", action="store_true", help="accept a report that looks vacuous")
 
     pi = sub.add_parser("import-pit", help="convert a PIT mutations.xml (run with -DfullMutationMatrix=true)")
     pi.add_argument("report")
@@ -320,7 +322,7 @@ def main(argv) -> int:
         return 0
     if a.cmd == "import-stryker":
         from . import importers
-        return importers.stryker(a.report, a.out)
+        return importers.stryker(a.report, a.out, a.allow_bail, a.allow_low_score)
     if a.cmd == "import-pit":
         from . import importers
         return importers.pit(a.report, a.out)

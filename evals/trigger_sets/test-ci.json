@@ -1,0 +1,82 @@
+[
+ {
+  "query": "CI is slow and flaky. restructure the test jobs into PR and nightly tiers and get rid of the retry loop",
+  "should_trigger": true
+ },
+ {
+  "query": "add the test policy gate (tmx gate) to our github actions workflow",
+  "should_trigger": true
+ },
+ {
+  "query": "how should we run mutation testing in CI without making every PR take an hour?",
+  "should_trigger": true
+ },
+ {
+  "query": "set up a quarantine for flaky tests instead of retries, with an expiry so they don't rot",
+  "should_trigger": true
+ },
+ {
+  "query": "our pipeline can't keep up with the agent PRs anymore, make the test stage fast again",
+  "should_trigger": true
+ },
+ {
+  "query": "we're on gitlab. wire up a nightly job that runs the probation tests and records results, and PR jobs that exclude them",
+  "should_trigger": true
+ },
+ {
+  "query": "only run the tests affected by a change in PRs, but keep a full run on main as a safety net",
+  "should_trigger": true
+ },
+ {
+  "query": "our .github/workflows/ci.yml reruns pytest 3 times until green. fix it properly",
+  "should_trigger": true
+ },
+ {
+  "query": "PRs touching billing/ need approval from payments leads before the test gate passes \u2014 set that up in CI",
+  "should_trigger": true
+ },
+ {
+  "query": "shard the pytest suite across 4 runners, it's at 14 minutes",
+  "should_trigger": true
+ },
+ {
+  "query": "write the GitHub Actions workflow that deploys to staging on merge",
+  "should_trigger": false
+ },
+ {
+  "query": "decide our coverage thresholds and testing rules for the repo",
+  "should_trigger": false
+ },
+ {
+  "query": "fix the failing test_cart_total test",
+  "should_trigger": false
+ },
+ {
+  "query": "audit the test suite for redundancy",
+  "should_trigger": false
+ },
+ {
+  "query": "our docker build in CI is slow, can you add layer caching",
+  "should_trigger": false
+ },
+ {
+  "query": "cut the test suite in half without losing protection",
+  "should_trigger": false
+ },
+ {
+  "query": "write tests for the new webhook handler",
+  "should_trigger": false
+ },
+ {
+  "query": "the linter job fails on CI with a ruff version mismatch",
+  "should_trigger": false
+ },
+ {
+  "query": "set up dependabot for npm and pip",
+  "should_trigger": false
+ },
+ {
+  "query": "prove the tax tests are complete for all regions",
+  "should_trigger": false
+ }
+]

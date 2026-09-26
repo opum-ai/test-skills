@@ -1,0 +1,82 @@
+[
+ {
+  "query": "our test suite has gotten huge and every refactor breaks dozens of tests. how many of these do we actually need?",
+  "should_trigger": true
+ },
+ {
+  "query": "coverage says 94% but bugs keep slipping into prod. is our test suite any good? be honest",
+  "should_trigger": true
+ },
+ {
+  "query": "run a health check on the tests and the CI pipeline: redundancy, flaky stuff, over-mocking, the lot. report only, no changes",
+  "should_trigger": true
+ },
+ {
+  "query": "which of our tests are pseudo-tests that execute code but would never catch a bug?",
+  "should_trigger": true
+ },
+ {
+  "query": "CI takes 35 minutes and nobody trusts it anymore. figure out what's wrong with the test suite before we touch anything",
+  "should_trigger": true
+ },
+ {
+  "query": "agents added ~2k tests to this repo over the summer. I want a number: how many are pulling their weight and which ones",
+  "should_trigger": true
+ },
+ {
+  "query": "audit tests/ against our TEST-CONSTITUTION.md and tell me where we're out of compliance",
+  "should_trigger": true
+ },
+ {
+  "query": "what's our mutation score on the money modules? and are there tests that don't kill anything?",
+  "should_trigger": true
+ },
+ {
+  "query": "before we do a big cleanup I need an analysis of which tests are duplicates or subsumed by others - with evidence I can show the team",
+  "should_trigger": true
+ },
+ {
+  "query": "the vitest suite in this TS service is brittle, can you audit it with stryker and tell me what's wrong",
+  "should_trigger": true
+ },
+ {
+  "query": "go ahead and delete the duplicate tests you found and consolidate the rest into tables",
+  "should_trigger": false
+ },
+ {
+  "query": "write a test for the bug in issue 212",
+  "should_trigger": false
+ },
+ {
+  "query": "configure pytest-xdist so tests run in parallel",
+  "should_trigger": false
+ },
+ {
+  "query": "set up our testing policy and a CI gate so this doesn't happen again",
+  "should_trigger": false
+ },
+ {
+  "query": "our CI is slow; split the test job into PR and nightly tiers",
+  "should_trigger": false
+ },
+ {
+  "query": "implement the loyalty feature in SPEC.md with tests",
+  "should_trigger": false
+ },
+ {
+  "query": "what does 'mutation testing' mean?",
+  "should_trigger": false
+ },
+ {
+  "query": "is tests/test_tax.py::test_ca_rate flaky? it failed once yesterday",
+  "should_trigger": false
+ },
+ {
+  "query": "add type hints to shop/cart.py",
+  "should_trigger": false
+ },
+ {
+  "query": "prove that the discount property test subsumes the 12 example tests in test_discounts.py",
+  "should_trigger": false
+ }
+]

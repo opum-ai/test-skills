@@ -119,3 +119,20 @@ def test_adding_only_a_skip_decorator_to_an_existing_test_is_caught(tmp_path):
     git(tmp_path, "commit", "-qam", "skip it")
     res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), base="main")
     assert "smell:skipped" in {v["rule"] for v in res["violations"]}
+
+
+def test_edit_hook_judges_only_the_tests_an_edit_touched(tmp_path):
+    hook = os.path.join(os.path.dirname(TMX), "..", "..", "test-constitution", "scripts", "hook_test_edit.py")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    t = tmp_path / "test_x.py"
+    t.write_text("def test_old_debt():\n    run()\n\n\ndef test_ok():\n    assert f() == 1\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "init")
+    payload = json.dumps({"tool_input": {"file_path": str(t)}, "cwd": str(tmp_path)})
+    run = lambda: subprocess.run([sys.executable, hook], input=payload, capture_output=True, text=True)  # noqa: E731
+    t.write_text(t.read_text().replace("assert f() == 1", "assert f() == 1 and g() == 2"))
+    assert run().returncode == 0                       # old no-assert debt is not blamed on this edit
+    t.write_text(t.read_text() + "\n\ndef test_new():\n    h()\n")
+    r = run()
+    assert r.returncode == 2 and "test_new" in r.stderr and "test_old_debt" not in r.stderr

@@ -1,0 +1,82 @@
+[
+ {
+  "query": "we're spinning up a new payments service next sprint and i want the testing rules nailed down before anyone writes code - how many tests is too many, when a new test is allowed in, coverage vs mutation, that kind of thing",
+  "should_trigger": true
+ },
+ {
+  "query": "our claude code agents keep dumping 20-30 new tests into every PR in this repo. I need guardrails in CLAUDE.md plus something in CI that actually blocks it, not just a polite note",
+  "should_trigger": true
+ },
+ {
+  "query": "Can you write a TESTING.md policy for the monorepo? billing/ and auth/ should be held to a stricter bar than scripts/ and the admin CLI",
+  "should_trigger": true
+ },
+ {
+  "query": "set up a test budget + ratchet for this project so the suite can only shrink unless someone justifies growth in the PR",
+  "should_trigger": true
+ },
+ {
+  "query": "we need a written rule set for how tests get deleted around here, right now people just delete failing tests and call it a day",
+  "should_trigger": true
+ },
+ {
+  "query": "make shop/tax.py and shop/pricing.py 'high assurance' level testing and everything else standard \u2014 whatever the right framework for that is",
+  "should_trigger": true
+ },
+ {
+  "query": "I keep hearing we should gate on mutation score instead of 90% line coverage. can you set that up as our policy with different thresholds per module?",
+  "should_trigger": true
+ },
+ {
+  "query": "update our testing constitution: raise the budget from 175 to 220 because the new inventory module needs room, and log why",
+  "should_trigger": true
+ },
+ {
+  "query": "new repo, python + pytest. before we start: set up the testing standards and governance so the AI agents don't bloat things like they did on the last project",
+  "should_trigger": true
+ },
+ {
+  "query": "add an agent instructions block that tells claude how to write tests in this repo \u2014 no mocks of internal helpers, no sleeps, prune scaffolding before finishing",
+  "should_trigger": true
+ },
+ {
+  "query": "how many of the 900 tests in tests/ are actually redundant? just measure it for now, don't change anything",
+  "should_trigger": false
+ },
+ {
+  "query": "write unit tests for the new refund endpoint in api/refunds.py",
+  "should_trigger": false
+ },
+ {
+  "query": "our pytest run fails with ModuleNotFoundError: shop on CI but works locally, any idea?",
+  "should_trigger": false
+ },
+ {
+  "query": "cut the test suite down, it takes 40 minutes; you can go ahead and delete what's redundant",
+  "should_trigger": false
+ },
+ {
+  "query": "set up github actions to run pytest on 3.9 and 3.12 and cache pip",
+  "should_trigger": false
+ },
+ {
+  "query": "what's the difference between mutation testing and code coverage?",
+  "should_trigger": false
+ },
+ {
+  "query": "the CI retry loop in .github/workflows/ci.yml hides flaky failures, replace it with a quarantine for flaky tests",
+  "should_trigger": false
+ },
+ {
+  "query": "prove that these 40 tests for parse_duration are enough, or tell me which ones can go",
+  "should_trigger": false
+ },
+ {
+  "query": "implement SPEC.md's rate limiter test-first and keep the test count reasonable",
+  "should_trigger": false
+ },
+ {
+  "query": "review this PR for missing test coverage on the discount stacking change",
+  "should_trigger": false
+ }
+]

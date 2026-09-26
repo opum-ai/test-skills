@@ -1,6 +1,6 @@
 ---
 name: test-audit
-description: Measure an existing test suite and its CI against a lean-but-adequate standard - per-test mutation kill matrix, certified minimal subset, redundancy (duplicate, subsumed, zero-signal tests), clone clusters that should be one parametrized test or property, test smells (no-assert, tautology, over-mocking, implementation coupling, sleeps, snapshots), flakiness and CI tiering - and report how far the suite can shrink without losing fault detection. Use this skill whenever someone says the tests are bloated, too many, slow, flaky, brittle, or "collapsing", asks how many tests they really need, wants a test-suite health check, asks whether their coverage or mutation score is adequate, or wants to bring an existing project into compliance with a test constitution - even if they only say "our CI takes forever" or "the agent keeps adding tests". It measures and recommends; the test-reduce skill applies the cuts.
+description: "Use this skill to diagnose the health of a whole existing test suite and its CI, and to report how lean it could be without losing fault detection. It builds a per-test mutation kill matrix, certifies a minimal subset, and flags duplicate, subsumed and zero-signal tests, clone clusters, test smells, flakiness and CI tiering problems. Use it when the concern is the suite as a whole: it's bloated, slow, brittle, untrusted or agent-grown; the user wants to know how many tests they really need; they doubt their coverage or mutation score; or they want it checked against a test constitution. Vague complaints like \"CI takes forever\" count. Do not use it for narrow questions about specific named tests, such as whether one test is flaky or whether a given property test subsumes certain example tests. Also skip it for writing new tests, explaining concepts, or carrying out deletions and consolidation, which belong to test-reduce. This skill only measures and recommends."
 ---
 
 # test-audit
@@ -27,6 +27,7 @@ It does not delete anything. That is `test-reduce`, and it starts from this repo
 | Command | What it gives you |
 |---|---|
 | `collect-pytest --src PKG --tests tests -o .tmx/matrix.json` | Per-test coverage, then a **kill matrix**: every mutant of PKG, run against only the tests that cover its line, in throwaway copies. Run it with the project's interpreter (pytest + coverage). |
+| `faults faults.json --cmd "<test cmd writing {junit}>" [--matrix m.json]` | Domain faults for **any language**: text patches applied in throwaway copies, run with any JUnit-writing command, merged into the matrix with exact attribution (a fault that breaks compilation is an `error`, never a kill). |
 | `import-stryker mutation.json -o .tmx/matrix.json` | The same matrix for JS/TS/C#/Scala from Stryker (`coverageAnalysis: "perTest"`, json reporter). |
 | `score .tmx/matrix.json --survivors` | Mutation score, zero-kill tests, surviving mutants. |
 | `analyze .tmx/matrix.json -o .tmx/plan.json [--csv keep.csv]` | Smallest subset preserving **every** kill (weighted set cover), reasons per removed test, trade-off curve, certificate; `--csv` writes the per-test keep/remove table for the user. |
@@ -57,7 +58,9 @@ static smells/clones plus JUnit counts, which gives a partial audit, labelled as
      git history.
    - **Scope:** restrict `--src` to one package at a time when the suite is huge. Say so
      in the report.
-   - **Domain faults for critical code:** `--extra-mutants faults.json` takes a list of
+   - **Domain faults for critical code:** `--extra-mutants faults.json` (pytest collector), or
+     `tmx faults faults.json --cmd ...` for any language (for example Vitest with
+     `--reporter=junit --outputFile={junit}`, merged into an imported Stryker matrix). Each takes a list of
      `{"file", "find", "replace", "desc"}` entries. The operators cover comparisons,
      arithmetic (including `//` vs `/`), constants up and down, numeric strings,
      `raise` deletion, `min`/`max`/`sum`/`any`/`all` swaps and rounding modes. They do not

@@ -180,6 +180,10 @@ def main():
             res = grade_shop(a.case, ws, a.python, tmp)
         elif a.case == "loyalty-greenfield":
             res = grade_loyalty(ws, a.python, tmp)
+        elif a.case == "ts-audit":
+            fix = pristine("ts-bloated-cart", os.path.join(tmp, "pristine"))
+            res = {"src_unchanged": tree_hash(ws, "src") == tree_hash(fix, "src"),
+                   "tests_unchanged": tree_hash(ws, "test") == tree_hash(fix, "test")}
         elif a.case == "constitution-setup":
             res = grade_constitution(ws, a.python, tmp)
         else:

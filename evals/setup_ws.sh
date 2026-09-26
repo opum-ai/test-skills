@@ -3,7 +3,8 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 FIX="$HERE/fixtures/$1"; DEST="$2"
-rm -rf "$DEST"; mkdir -p "$(dirname "$DEST")"; cp -R "$FIX" "$DEST"
+mkdir -p "$(dirname "$DEST")"; [ ! -e "$DEST" ] || { echo "refusing: $DEST exists" >&2; exit 2; }
+cp -cR "$FIX" "$DEST" 2>/dev/null || cp -R "$FIX" "$DEST"   # APFS clone when available (node_modules)
 cd "$DEST"
 if [ -x ./make_history.sh ]; then
   ./make_history.sh >/dev/null

@@ -20,7 +20,8 @@ zero-assert tests), never as certified removals.
 ## Stryker, verified on a real project (`evals/fixtures/ts-bloated-cart`)
 
 This was verified with Stryker 10 and `@stryker-mutator/vitest-runner` on vitest 4.1 and 3.2.
-The fixture carries a working `stryker.config.json`.
+The fixture's `stryker.config.json` is deliberately left at Stryker's defaults (it is an eval
+fixture). Add `"disableBail": true` before collecting a matrix.
 
 **Required settings.**
 - **`coverageAnalysis: "perTest"`.** Without it there are no per-test kill sets.
@@ -34,6 +35,12 @@ unmutated code: the same suite scored **6.5% on vitest 5 and 97.4% on vitest 4.1
 error. If most mutants survive while being covered by many tests, the importer refuses the
 report and names this cause (`--allow-low-score` overrides it). Pin vitest ≤ 4.x until the
 runner supports 5.
+
+**Domain faults.** Stryker never changes a rate, a threshold or the order of two rules. Use
+`tmx faults faults.json --cmd "npx vitest run --reporter=junit --outputFile={junit}" --matrix
+.tmx/matrix.json -o .tmx/matrix.json`, which merges the faults into the imported Stryker matrix.
+In the benchmark, every agent auditing the TypeScript fixture needed this: Stryker alone certified
+10 tests that would miss 9 plausible money bugs.
 
 **No `verify --rerun` for Stryker.** The empirical replay is pytest-only. The equivalent is to
 exclude the demoted tests (a vitest `exclude` pattern or a `*.probation.test.ts` rename), re-run

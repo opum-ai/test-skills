@@ -18,7 +18,9 @@
         "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
         "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
         "Did not modify tests/ or shop/"
-      ]
+      ],
+      "expected_output": "A per-test mutation kill matrix, a certified minimal subset (~30-50 of 172) with its scope, boundary and history tests named, clone clusters, smells, CI findings; no code changed.",
+      "files": []
     },
     {
       "id": 2,
@@ -35,7 +37,9 @@
         "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
         "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
         "Did not modify the shop/ source code"
-      ]
+      ],
+      "expected_output": "PR-tier suite <= 60 tests passing, before/after mutation comparison with zero lost kills, history bugs still caught, clones consolidated, removals staged reversibly.",
+      "files": []
     },
     {
       "id": 3,
@@ -51,7 +55,9 @@
         "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
         "Expected values come from the spec (not computed by calling the implementation)",
         "The final summary reports what tests were written and what was pruned or consolidated during TDD"
-      ]
+      ],
+      "expected_output": "Correct implementation (hidden acceptance tests) with a lean, partition-organized suite (<= 30 cases, >= 85% mutation) and a report of what was pruned.",
+      "files": []
     },
     {
       "id": 4,
@@ -68,6 +74,26 @@
         "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
         "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
         "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach"
+      ],
+      "expected_output": "Written constitution + machine policy with a stricter money tier, mutation-based adequacy, a CI gate on PRs, agent instructions, green on day one, quarantine instead of retries.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "ts-audit",
+      "fixture": "ts-bloated-cart",
+      "expected_skill": "test-audit",
+      "prompt": "This is a small TypeScript service with a Vitest suite that agents have been growing on every change. It's getting brittle and we don't trust it. Audit the tests: how many do we actually need, which ones, and what's wrong with the rest? Stryker is already set up (npm run mutate). Don't change the code or the tests yet.",
+      "expected_output": "Uses real per-test mutation data (Stryker with per-test coverage and without bail) to certify a minimal subset of the 66 tests, keeps the boundary tests, flags spy/private-state coupling, skip, no-assert, tautology, timer and snapshot tests; no code changed.",
+      "files": [],
+      "assertions": [
+        "Used per-test mutation data (e.g. Stryker with perTest coverage) rather than only coverage or reading the tests",
+        "Recognized that Stryker's default bail limits killedBy to one test per mutant and ran without bail (disableBail) or otherwise obtained complete per-test kill sets",
+        "States a concrete minimal subset size (between 8 and 25 of the 66 tests) and what that claim is relative to (Stryker mutators / scope)",
+        "Keeps the real boundary tests: volume tier boundaries (9/10, 49/50, 99/100), 999/1000 quantity limit, min spend inclusive, percentages before fixed, discount capped at subtotal",
+        "Flags the spy call-count test and the private-state (as any) test as implementation-coupled",
+        "Flags the skipped, no-assertion, tautological, timer-based and snapshot tests",
+        "Did not modify src/ or test/"
       ]
     }
   ]

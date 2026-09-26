@@ -78,28 +78,34 @@ static smells/clones plus JUnit counts, which gives a partial audit, labelled as
      retained test), and `jointly-covered`.
    - `curve`: how few tests reach 80, 90 and 95% of the kills.
    - `optimal` / `lower_bound`: whether the subset is provably minimal for this matrix.
-5. **Weakness pass.** Run `score --survivors`. Surviving mutants in critical code are
+5. **Brittleness, measured.** "Every refactor breaks dozens of tests" is a claim you can test.
+   In a scratch copy, apply a few behaviour-preserving refactors: rename a private attribute,
+   inline a helper, switch an internal call to its public equivalent. Count the tests that fail.
+   Every failure is a change detector (Article VI). Report the count and name the tests. In
+   the evaluation, unaided agents did this and it made their reports more convincing than
+   static smell counts alone.
+6. **Weakness pass.** Run `score --survivors`. Surviving mutants in critical code are
    *missing* tests. Triage the top ones:
    - an **equivalent mutant** (no behavior change, e.g. `x < lo` → `x <= lo` inside a
      clamp that returns `lo`);
    - a **real gap**: name the missing assertion.
    A lean suite that misses real faults is not the goal.
-6. **CI review.** Read the workflow files against `references/ci-review.md`:
+7. **CI review.** Read the workflow files against `references/ci-review.md`:
    - tiers (PR vs nightly), selection, sharding, caching;
    - retries-to-green, which hide flakes (Article XI);
    - timeouts, and whether the gate is present.
-7. **Rigor.** Resolve each path's level from the policy (default R3 when there is none).
+8. **Rigor.** Resolve each path's level from the policy (default R3 when there is none).
    Judge the evidence against that level's obligations
    (`../test-constitution/references/rigor-profiles.md`):
    - R4 paths need every survivor triaged;
    - R5 paths need history mutants killed, traceability and an assurance plan.
    Report **per path and per level**. A critical path audited against R3 thresholds is a
    finding.
-8. **Constitution compliance.** If the project has a constitution, check each article and
+9. **Constitution compliance.** If the project has a constitution, check each article and
    mark it pass / fail / not measurable, with evidence. If it has none, report against the
    default articles in `../test-constitution/assets/TEST-CONSTITUTION.md` and recommend
    adopting them.
-9. **Write `.tmx/findings.json` and publish the report** (`references/report.md`). Offer
+10. **Write `.tmx/findings.json` and publish the report** (`references/report.md`). Offer
    the next steps:
    - `test-reduce` to apply the plan;
    - `test-constitution` if there is no constitution;

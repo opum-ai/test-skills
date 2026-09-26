@@ -16,8 +16,11 @@
         "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
         "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
         "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
-        "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
-        "Did not modify tests/ or shop/"
+        "Reverted (or re-injected) each of the three historical bug fixes from git history and showed the recommended subset still fails on each",
+        "Did not modify tests/ or shop/",
+        "Re-ran the recommended reduced set on its own against the fault set (empirical verification, not only a computation over recorded data)",
+        "Included hand-written domain (money/inventory) faults beyond generic mutation operators before recommending the cut",
+        "Recommends staging removals reversibly (e.g. nightly probation / trial period) rather than immediate deletion"
       ],
       "expected_output": "A per-test mutation kill matrix, a certified minimal subset (~30-50 of 172) with its scope, boundary and history tests named, clone clusters, smells, CI findings; no code changed.",
       "files": []
@@ -29,8 +32,8 @@
       "expected_skill": "test-reduce",
       "prompt": "This test suite is bloated (agents kept adding tests on every change). Cut it down radically so it's lean and maintainable, but we cannot afford to lose any real protection, especially around money. Go ahead and make the changes.",
       "assertions": [
-        "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
-        "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+        "The PR-tier command (tests not marked probation/quarantine/slow) collects at most 60 items (parametrized rows count) and all pass",
+        "No fault detection was lost: the grader-held mutant set shows zero lost kills (objective lost_kill_count == 0), and the agent produced its own before/after comparison or certificate",
         "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
         "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
         "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
@@ -50,7 +53,9 @@
       "assertions": [
         "The implementation passes the hidden acceptance tests (graded objectively)",
         "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
-        "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+        "The new tests achieve a mutation score of at least 85% on the new loyalty code (objective mutation_new_code.score)",
+        "At most 36 test cases added (parametrized rows count; objective tests_added). 36 is 1.5x the 21-24 case minimal fault-equivalent sets the iteration-1 runs measured",
+        "The new tests have no test smells (objective smells is empty)",
         "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
         "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
         "Expected values come from the spec (not computed by calling the implementation)",

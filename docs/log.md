@@ -11,6 +11,7 @@
 - 2026-09-26T11:34:11-05:00 8377e252e708c828cc80fef968e514b1012355af Repo CI (PR tier + constitution gate, nightly slow tier); refresh baseline; untrack local runtime and raw eval output
 - 2026-09-26T11:46:19-05:00 4779571f06ad4111711a2b07ad8298d506a50f49 test-skills 0.1.0: sustainable test suites for agentic engineering (#1)
 - 2026-09-26T12:03:57-05:00 58c0accf370ecc25bb04851b9dbaab05ce2252aa TS/Stryker path verified on a real project: TS fixture, importer guards (bail, vacuous vitest 5), stable Stryker keys, JS smells; real-report regression tests; close TS-13
+- 2026-09-26T12:04:51-05:00 bb5e1309a07de524d1228766bdbe6d5861a3e744 TS-13: verify the JS/TS path on a real Stryker run (#3)
 
 ## docs/stories
 

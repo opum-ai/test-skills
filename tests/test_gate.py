@@ -63,14 +63,22 @@ def test_a_trailer_raises_rigor_but_cannot_lower_it():
     assert rigor.rules("R5", {"admission": {"max_mocks_per_test": 9, "forbid_smells": []}})["max_mocks_per_test"] == 2
 
 
-def test_mini_toml_matches_tomllib_on_the_shipped_template():
-    tomllib = pytest.importorskip("tomllib")
+def test_mini_toml_parses_the_shipped_template_on_every_supported_python():
+    try:
+        import tomllib
+    except ImportError:   # Python < 3.11: the fallback parser is what runs in production there
+        tomllib = None
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     text = open(os.path.join(root, "skills", "test-constitution", "assets", "test-policy.toml")).read()
     text = (text.replace("{{critical_paths}}", '["a/**"]').replace("{{max_tests}}", "10")
             .replace("{{max_seconds}}", "60").replace("{{src}}", "pkg").replace("{{rigor}}", "R3")
             .replace("{{critical_rigor}}", "R4"))
-    assert gate.mini_toml(text) == tomllib.loads(text)
+    got = gate.mini_toml(text)
+    assert got["rigor"] == "R3" and got["budget"]["max_tests"] == 10 and got["test_roots"] == ["tests"]
+    assert [t["name"] for t in got["adequacy"]["tier"]] == ["critical", "standard", "glue"]
+    assert got["adequacy"]["tier"][0] == {"name": "critical", "paths": ["a/**"], "rigor": "R4", "min_mutation_score": 0.8}
+    assert "sleep" in got["admission"]["forbid_smells"] and got["flaky"]["max_skipped"] == 0
+    assert tomllib is None or got == tomllib.loads(text)
 
 
 def test_unknown_base_ref_is_a_usage_error(repo):

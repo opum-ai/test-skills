@@ -15,6 +15,7 @@
 - 2026-09-26T13:14:28-05:00 a492149f28a0c3b0678d4b96d84192a9e3dc6bfe TS-14: skill-creator iteration 1 results (3 runs/arm), grader-driven skill fixes
 - 2026-09-26T13:17:04-05:00 91ee73ddcbbbd467a22a386ea3b050ca89d7cfda TS-14: skill-creator evaluation - 3-run benchmark with variance, description optimization (#4)
 - 2026-09-26T15:32:59-05:00 57a3b7b1494d8b1e2ced82fe858013b84dbfea5c TS-15: plugin-eval runner with monitored logs; regenerate stale cases (#5)
+- 2026-09-26T16:31:14-05:00 1353b03828509ac28ac8782ed801d8821d70aad3 TS-16: project .venv via uv for evals; runner uses it by default (#6)
 
 ## docs/stories
 

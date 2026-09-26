@@ -17,7 +17,7 @@ STATUS = {"Killed": "killed", "Survived": "survived", "NoCoverage": "no_coverage
           "CompileError": "error", "RuntimeError": "error", "Ignored": "ignored", "Pending": "error"}
 
 
-def stryker(report_path: str, out: str) -> int:
+def stryker(report_path: str, out: str, allow_bail: bool = False, allow_low_score: bool = False) -> int:
     with open(report_path) as f:
         r = json.load(f)
     tests = {}
@@ -38,10 +38,16 @@ def stryker(report_path: str, out: str) -> int:
             mutants[f"{sfile}#{mu['id']}"] = {
                 "file": sfile, "line": loc.get("line"), "op": mu.get("mutatorName"),
                 "desc": mu.get("replacement", ""), "status": STATUS.get(mu.get("status"), "error"),
+                # stable across runs of the same source (Stryker's numeric ids are not)
+                "key": f"{sfile}:{loc.get('line')}:{loc.get('column')}:{mu.get('mutatorName')}:{mu.get('replacement', '')}",
                 "killed_by": sorted(killed), "covered_by": sorted(covered)}
     if not any(mu["killed_by"] for mu in mutants.values()):
         print("warning: no killedBy data; run Stryker with coverageAnalysis: 'perTest' "
               "and the json reporter", flush=True)
+    problem = _stryker_problem(mutants, allow_bail, allow_low_score)
+    if problem:
+        print("refusing to import: " + problem)
+        return 4
     m = {"schema": mx.SCHEMA, "root": os.getcwd(), "commit": None,
          "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
          "tool": {"collector": "stryker", "mutator": "stryker", "operators": []},
@@ -52,6 +58,25 @@ def stryker(report_path: str, out: str) -> int:
     print(f"{len(tests)} tests, {s['mutants']} mutants, score "
           f"{'n/a' if s['score'] is None else round(100 * s['score'], 1)}% -> {out}")
     return 0
+
+
+def _stryker_problem(mutants: dict, allow_bail: bool, allow_low_score: bool):
+    """Two failure shapes seen in real runs, both of which would make a reduction wrong."""
+    killed = [mu for mu in mutants.values() if mu["status"] == "killed"]
+    if not allow_bail and len(killed) >= 10 and all(len(mu["killed_by"]) == 1 for mu in killed):
+        return ("every killed mutant names exactly one killer: Stryker stopped at the first failing test "
+                "(bail). Per-test kill sets are then incomplete, and most tests would look useless. Set "
+                "\"disableBail\": true in the Stryker config and re-run (or pass --allow-bail).")
+    valid = [mu for mu in mutants.values() if mu["status"] in ("killed", "survived", "timeout", "no_coverage")]
+    survived = [mu for mu in valid if mu["status"] == "survived"]
+    if not allow_low_score and len(valid) >= 20 and len(survived) / len(valid) > 0.8:
+        wide = sorted(len(mu["covered_by"]) for mu in survived)[len(survived) // 2] if survived else 0
+        if wide >= 3:
+            return (f"{len(survived)} of {len(valid)} mutants survived although the median survivor is covered "
+                    f"by {wide} tests. That is the signature of mutants never reaching the code under test "
+                    "(seen with Stryker 10 + vitest 5, where the same suite scores 97% on vitest 4). Check "
+                    "the runner and framework versions (or pass --allow-low-score if the suite really is this weak).")
+    return None
 
 
 PIT_STATUS = {"KILLED": "killed", "SURVIVED": "survived", "NO_COVERAGE": "no_coverage",

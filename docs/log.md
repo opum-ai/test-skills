@@ -9,6 +9,7 @@
 - 2026-09-26T10:26:02-05:00 35350cafa2103a7c04c7bee8d202d406745bcc5c Tier slow engine tests (Article X, pytest.ini); clone rows in source order; clones/subsumes tests; close TS-1,2,4-10 with evidence
 - 2026-09-26T10:31:25-05:00 3e03c90df4bac613bf5fd7cad6a48c0643f9ae19 Close TS-3 (engine) with evidence; score/baseline and broken-harness tests; file TS-11 (engine below its own R4 floor)
 - 2026-09-26T11:34:11-05:00 8377e252e708c828cc80fef968e514b1012355af Repo CI (PR tier + constitution gate, nightly slow tier); refresh baseline; untrack local runtime and raw eval output
+- 2026-09-26T11:46:19-05:00 4779571f06ad4111711a2b07ad8298d506a50f49 test-skills 0.1.0: sustainable test suites for agentic engineering (#1)
 
 ## docs/stories
 

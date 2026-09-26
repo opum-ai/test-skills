@@ -1,0 +1,43 @@
+<!-- quest:agent-instructions:begin -->
+# Quest agent instructions
+
+This project uses Quest CLI 0.10.0 for tracker operations. Run `quest manifest --json` to discover the supported command contract.
+
+Read the matching guide before tracker work: `quest instructions overview` for the command set and machine contract, `quest instructions task-creation` before creating or splitting tasks, `quest instructions task-execution` before claiming, planning, or recording progress, `quest instructions task-finalization` before checking acceptance criteria or closing a task, and `quest instructions workspace` for initialization, managed instructions, and Backlog.md migration. `quest instructions --list` lists every guide. Search for an existing record with `quest search "<query>" --json` before creating one, and run `quest help <command>` for a command's options and examples.
+
+Quest writes require an explicit actor declaration: `--actor <id> --actor-kind human` for a person, or `--actor <id> --actor-kind delegated-agent --accountable-human <id>` for an agent acting on a person's behalf. Do not edit Quest-authored records directly. CI should run `quest agents --check --require-installed --target claude`: current instructions, and a version-only difference (only the pinned Quest CLI version number is stale) both exit 0; missing, drifted, or malformed managed instructions exit 6. Quest does not retry write conflicts automatically; callers should read the latest task state and perform their own bounded retry when a command returns conflict/exit 5.
+<!-- quest:agent-instructions:end -->
+
+<!-- lore:agents:begin -->
+This repo uses **lore** — an OKF-native documentation CLI — for the docs bundle under `docs/`.
+Drive docs work through `lore` (not a plain editor or `grep`) so Story <-> Task coupling, managed
+blocks, and cross-links stay coherent.
+
+- **Find and read docs:** `lore query "<words>" --limit 5`, then `lore read <id>` for the best hit.
+- **Skill:** `.claude/skills/lore/SKILL.md` — how to drive lore.
+- **Just-in-time detail:** run `lore instructions` for the canonical agent loop, then
+  `lore instructions <topic>` (`retrieval`, `linking`, `sync`, `check`, `validation`, `types`, `workspace`, `agents`).
+<!-- lore:agents:end -->
+
+<!-- test-skills:constitution:begin -->
+## Testing rules (TEST-CONSTITUTION.md, enforced by `tmx gate`)
+
+Before writing or changing a test:
+1. **Name what it protects.** Every test protects a requirement, contract, past bug or listed
+   risk (Art. I). If you cannot name one, do not write it.
+2. **Admit only marginal value.** Keep a new test only if it catches something the suite does
+   not (Art. V). A new example that varies only input values is justified only if the code
+   branches on that difference. Otherwise add a row to the existing table or property (Art. VII).
+3. **Prune before you finish.** TDD is Red → Green → Refactor → **Prune** (Art. IX). Delete
+   scaffolding and probe tests, or fold them into tables. Report `tests +N/-M` in the summary.
+4. **Assert behavior from the spec.** No asserts on private state or internal call order. Mock
+   only network/disk/clock/randomness (Art. VI). Expected values come from the spec, never
+   from running the code (Art. IV).
+5. **Stay in budget.** At most 8 new tests per change without a `Test-Budget: <reason>`
+   trailer (Art. II). No sleeps, no retries-to-green, no skipped tests (Art. X, XI).
+6. **Work at the effective rigor.** The effective level is the highest of the project default (R3),
+   the tier of every path you touch, and any `Rigor:` trailer. You may raise it, never lower it. At
+   R4/R5, never waive an obligation or claim approval; missing evidence means the gate stays red.
+7. **Never delete tests to get green.** Removing tests is its own change, with a `tmx`
+   certificate (Art. XII). Use the test-reduce skill.
+<!-- test-skills:constitution:end -->

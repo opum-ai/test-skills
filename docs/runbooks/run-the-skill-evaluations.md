@@ -1,0 +1,68 @@
+---
+# yaml-language-server: $schema=../../.lore/schemas/runbook.schema.json
+type: Runbook
+title: Run the skill evaluations
+tags:
+  - evals
+summary: Build workspaces, run with/without-skill agents, grade objectively with grade.py and blind assertion graders, and run the trigger suite with claude plugin eval.
+generated:
+  by: lore/0.9.2
+  at: 2026-09-26T14:53:54.621Z
+---
+
+# Run the skill evaluations
+
+## Purpose
+
+Measure whether the skills change outcomes, with graders that never trust an agent's own
+claims. There are two suites:
+- **Benchmark.** Four task cases (`evals/evals.json`), each run with and without the
+  skills, then graded two ways:
+  - objectively, by `evals/grade.py`;
+  - by blind assertion graders.
+- **Trigger suite.** 48 queries (`evals/triggers.py`), run through `claude plugin eval`.
+  Each skill gets 5 should-fire queries and 3 near misses.
+
+## Prerequisites
+
+- A Python with `pytest`, `coverage` and `hypothesis`, for example
+  `uv venv && uv pip install pytest coverage hypothesis`. Pass it as `--python`.
+- `git`. Fixture workspaces get a real history: `make_history.sh` creates the shop fixture's
+  three bug-fix commits, which become history mutants.
+- The trigger suite costs about $13 per run at 1 run per case.
+
+## Steps
+
+1. **Build the workspaces.** For each case and arm:
+   `evals/setup_ws.sh <fixture> <dir>/<case>/<with|without>/ws`
+2. **Run the agents.** Give each one the case prompt from `evals/evals.json` and the
+   pinned Python.
+   - With-skill arms also get the skills directory and the six skill descriptions.
+   - Baseline arms are told to stay inside the workspace.
+   - Save each agent's final message as `FINAL.md`.
+3. **Grade objectively:**
+   `python3 evals/grade.py <case> <ws> --python <py> > grade.json`
+   - `shop-reduce`: grafts the agent's tests onto a pristine copy of the fixture history,
+     re-collects the kill matrix on the PR tier (excluding probation, quarantine and slow
+     tests) with `--history 5`, and reports lost kills and how many of the three
+     historical bugs are still caught.
+   - `loyalty-greenfield`: runs `evals/hidden/test_loyalty_acceptance.py`, 43 tests the
+     agent never saw. They pass 43/43 on `evals/hidden/loyalty_reference`. It also reports
+     tests added and the mutation score of the agent's suite on the new code.
+   - `shop-audit` and `constitution-setup`: check that the source is unchanged, count
+     tests, and inspect the CI and agent-instruction files.
+4. **Grade blind.** Copy each case's two workspaces to `A`/`B` under a random mapping, and
+   give one grader agent the case's assertions, both final messages, and the objective
+   metrics, all labelled A/B. It returns PASS/FAIL per assertion with evidence. Unblind
+   afterwards.
+5. **Run the trigger suite:**
+   `python3 evals/make_cases.py && claude plugin eval . --tag trigger --scaffold --ablation none -j 8 --threshold 0 --no-publish`
+   A run that hits `max_turns` after loading the skill counts as a genuine pass. So does a
+   near miss that used all its turns without loading the skill.
+6. **Record the results** in [Skill evaluation suite](../stories/skill-evaluation-suite.md),
+   with the date and model.
+
+## Rollback
+
+Nothing to roll back. Workspaces live in a scratch directory; delete it when done.
+`evals/results/` is git-ignored.

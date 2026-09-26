@@ -1,0 +1,21 @@
+{
+  "name": "test-skills",
+  "displayName": "Test Skills",
+  "description": "Sustainable test suites for agentic engineering: a test constitution with rigor profiles (R1 Minimal to R5 High-Assurance), lean test planning, mutation-kill-matrix audits, certified test-suite reduction with probation, CI gates, and provable-coverage claims.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Opum AI",
+    "url": "https://github.com/opum-ai"
+  },
+  "license": "MIT",
+  "keywords": [
+    "testing",
+    "tdd",
+    "mutation-testing",
+    "test-suite-reduction",
+    "ci",
+    "test-governance",
+    "property-based-testing",
+    "rigor"
+  ]
+}

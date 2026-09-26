@@ -55,8 +55,26 @@ claims. There are two suites:
    give one grader agent the case's assertions, both final messages, and the objective
    metrics, all labelled A/B. It returns PASS/FAIL per assertion with evidence. Unblind
    afterwards.
-5. **Run the trigger suite:**
-   `python3 evals/make_cases.py && claude plugin eval . --tag trigger --scaffold --ablation none -j 8 --threshold 0 --no-publish`
+5. **Run the `claude plugin eval` suites** with `evals/run_plugin_eval.sh [trigger|task|all]`.
+   Extra arguments pass through, for example `--runs 3` or `--case 'task-shop-*'`.
+   - **Before the run,** the script regenerates `evals/cases` from `evals/evals.json` and
+     `evals/triggers.py`. It installs the TypeScript fixture's `node_modules` if they are
+     missing.
+   - **Python.** It puts `EVAL_PYTHON`, an interpreter with pytest, coverage and hypothesis,
+     first on `PATH`.
+   - **Where the output goes.** Each invocation writes to
+     `/tmp/test-skills-plugin-eval/<timestamp>/`, with `latest` symlinked to it. `LOG_ROOT`
+     overrides the location. The directory holds:
+     - `run.env`: what was run;
+     - `<suite>.log`: the live console, recorded through `script(1)`;
+     - `<suite>.debug.log`: a per-message trace, which serves as a heartbeat;
+     - `<suite>.json` and `<suite>.html`: the full results and the report;
+     - `status`: one line per suite;
+     - `DONE`: written last.
+   - **Monitoring.** Another session can watch `status` and the trace's growth, then review
+     the JSON once `DONE` appears.
+   - **Arms.** Trigger cases run without a baseline arm. Task cases run with and without the
+     plugin. Reports stay local unless you pass `--publish-report`.
    A run that hits `max_turns` after loading the skill counts as a genuine pass. So does a
    near miss that used all its turns without loading the skill.
 6. **Record the results** in [Skill evaluation suite](../stories/skill-evaluation-suite.md),

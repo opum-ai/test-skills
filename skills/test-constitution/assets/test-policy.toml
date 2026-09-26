@@ -1,0 +1,57 @@
+# test-policy.toml: the machine-checked half of TEST-CONSTITUTION.md.
+# `python3 <tmx>/tmx.py gate --policy test-policy.toml ...` enforces it in CI.
+# Change it only by amendment (Article XIII).
+version = 1
+rigor = "{{rigor}}"                  # project default profile: R1 Minimal .. R5 High-Assurance (see rigor spec)
+constitution = "TEST-CONSTITUTION.md"
+baseline = ".test-baseline.json"
+source = ["{{src}}"]                 # source roots; used for private-API coupling checks
+
+[budget]                            # Article II
+max_tests = {{max_tests}}           # total ceiling; default ~= current count after the first audit
+max_suite_seconds = {{max_seconds}} # PR-tier wall time (JUnit sum)
+max_new_tests_per_pr = 8            # more needs a `Test-Budget: <reason>` trailer
+
+# Article III: risk tiers. Minimum mutation scores; the first tier matching a mutant's file wins,
+# so list the most critical first. Leave min_mutation_score unset for "measure, don't gate".
+# A tier with `rigor` gets that profile's floors (R4: 0.80 + survivor triage; R5: 0.90 + history).
+[[adequacy.tier]]
+name = "critical"
+paths = {{critical_paths}}
+rigor = "{{critical_rigor}}"             # raises every change touching these paths; a level's floors only rise
+min_mutation_score = 0.80
+
+[[adequacy.tier]]
+name = "standard"
+paths = ["{{src}}/*", "{{src}}/**"]
+min_mutation_score = 0.60
+
+[[adequacy.tier]]
+name = "glue"
+paths = ["**/cli.py", "**/__main__.py", "**/config*.py", "**/settings*.py"]
+
+[admission]                         # Articles IV, V, VI
+forbid_smells = ["no-assertion", "tautology", "swallowed-exception", "sleep", "skipped"]
+max_mocks_per_test = 3
+require_unique_kill = true          # needs a matrix in CI (nightly or on the diff)
+protected_file = "testing/protected.txt"   # exact test ids exempt from unique-kill (real-bug regressions);
+                                           # read from the BASE branch, so a PR cannot protect its own tests.
+                                           # Never use name globs: any new test can be named to match them.
+
+[flaky]                             # Article XI
+quarantine_file = ".test-quarantine.json"
+quarantine_days = 14
+max_skipped = 0
+
+[probation]                         # Article XII / ADR-0003
+marker = "probation"                # pytest marker (or directory tests/probation/)
+days = 14
+min_nightly_runs = 20
+
+[assurance]                         # R4/R5 (Art. XIII): approval evidence and survivor triage
+approvers = []                      # e.g. ["alice", "org/payments-leads"]; CI passes TMX_PR_APPROVERS
+triage_file = "testing/survivors.json"   # {"<mutant key from `tmx score --survivors`>": {"verdict": "equivalent", "reason": "..."}}
+
+[tiers]                             # Article X; used by the test-ci skill
+pr = "fast, hermetic tests; excludes probation and slow"
+nightly = "everything, plus probation, plus mutation matrix and gate --matrix"

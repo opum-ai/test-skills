@@ -1,0 +1,91 @@
+# Test pipeline shaped by TEST-CONSTITUTION.md (test-skills). Adjust paths, Python version, markers.
+# tmx is vendored at tools/tmx (copy skills/test-audit/scripts/ from the test-skills plugin).
+name: tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * *"          # nightly
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10               # Article X: the PR tier has a hard budget
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[test]"
+      - name: Tests (PR tier, no retries, no probation/slow)
+        run: pytest -q -m "not probation and not quarantine and not slow" -n auto --junitxml=report.xml
+      - name: Approvals from the review record (R4/R5)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          echo "TMX_PR_APPROVERS=$(gh pr view ${{ github.event.pull_request.number }} --json reviews \
+            -q '[.reviews[] | select(.state=="APPROVED") | .author.login] | unique | join(",")')" >> "$GITHUB_ENV"
+      - name: Mutation on the diff (R4+ paths; optional for R3)
+        run: |
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'src/**/*.py' | tr '\n' ' ')
+          if [ -n "$CHANGED" ]; then
+            ARGS=""; for f in $CHANGED; do ARGS="$ARGS --src $f"; done
+            python3 tools/tmx/tmx.py collect-pytest $ARGS --tests tests --per-line 1 -o .tmx/matrix.json --jobs 4
+          fi
+      - name: Test constitution gate
+        env:
+          TMX_PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          M=""; [ -f .tmx/matrix.json ] && M="--matrix .tmx/matrix.json"
+          python3 tools/tmx/tmx.py gate --policy test-policy.toml --junit report.xml $M \
+            --base origin/${{ github.base_ref }}
+
+  main:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[test]"
+      - name: Full non-probation suite (safety net for PR selection)
+        run: pytest -q -m "not probation and not quarantine" -n auto --junitxml=report.xml
+      - run: python3 tools/tmx/tmx.py gate --policy test-policy.toml --junit report.xml
+
+  nightly:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[test]"
+      - name: Everything, including probation and slow
+        run: pytest -q -n auto --junitxml=nightly.xml || echo "FAILED=1" >> "$GITHUB_ENV"
+      - name: Record probation results (ADR-0003)
+        run: python3 tools/tmx/tmx.py probation record --junit nightly.xml || echo "PROBATION_FAILED=1" >> "$GITHUB_ENV"
+      - name: Full kill matrix (sampled) and gate
+        run: |
+          python3 tools/tmx/tmx.py collect-pytest --src src --tests tests --per-line 1 --history 20 \
+            -o .tmx/matrix.json --jobs 4
+          python3 tools/tmx/tmx.py gate --policy test-policy.toml --matrix .tmx/matrix.json --junit nightly.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tmx-evidence
+          path: |
+            .tmx/
+            .test-probation.json
+            nightly.xml
+      - name: Open an issue on probation failure or red nightly
+        if: env.PROBATION_FAILED == '1' || env.FAILED == '1'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: >-
+          gh issue create --title "Nightly tests failed (probation or suite)"
+          --body "See run ${{ github.run_id }}"

@@ -1,0 +1,29 @@
+# GitLab equivalent of github-actions.yml (test-skills). Approvals: pass TMX_PR_APPROVERS from the MR approvals API.
+stages: [test, gate]
+variables: { PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip" }
+cache: { paths: [.pip] }
+
+pr-tests:
+  stage: test
+  rules: [{ if: '$CI_PIPELINE_SOURCE == "merge_request_event"' }]
+  timeout: 10m
+  script:
+    - pip install -e ".[test]"
+    - pytest -q -m "not probation and not quarantine and not slow" --junitxml=report.xml
+    - export TMX_PR_BODY="$CI_MERGE_REQUEST_DESCRIPTION"
+    - export TMX_PR_APPROVERS=$(curl -s --header "PRIVATE-TOKEN: $API_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/approvals" | python3 -c "import json,sys;print(','.join(a['user']['username'] for a in json.load(sys.stdin)['approved_by']))")
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - python3 tools/tmx/tmx.py gate --policy test-policy.toml --junit report.xml --base "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+  artifacts: { reports: { junit: report.xml } }
+
+nightly:
+  stage: test
+  rules: [{ if: '$CI_PIPELINE_SOURCE == "schedule"' }]
+  timeout: 60m
+  script:
+    - pip install -e ".[test]"
+    - pytest -q --junitxml=nightly.xml || true
+    - python3 tools/tmx/tmx.py probation record --junit nightly.xml
+    - python3 tools/tmx/tmx.py collect-pytest --src src --tests tests --per-line 1 --history 20 -o .tmx/matrix.json
+    - python3 tools/tmx/tmx.py gate --policy test-policy.toml --matrix .tmx/matrix.json --junit nightly.xml
+  artifacts: { paths: [.tmx/, .test-probation.json, nightly.xml] }

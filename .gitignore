@@ -1,0 +1,8 @@
+.tmx/
+__pycache__/
+*.pyc
+.DS_Store
+evals/results/
+evals/workspaces/
+.claude/handovers/
+evals/results-*.json

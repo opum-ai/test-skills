@@ -1,0 +1,74 @@
+{
+  "skill_name": "test-skills",
+  "evals": [
+    {
+      "id": 1,
+      "name": "shop-audit",
+      "fixture": "py-bloated-shop",
+      "expected_skill": "test-audit",
+      "prompt": "Our test suite in this repo has gotten out of hand. Agents have been adding tests with every change, every refactor breaks dozens of them, and nobody trusts CI. Audit the tests and the CI setup and tell me how many of these tests we actually need and which ones. Don't change any tests or code yet; I want the analysis first.",
+      "assertions": [
+        "Measured fault-detection per test with mutation analysis (a per-test kill matrix or equivalent), not only line coverage",
+        "States a concrete minimal subset size (between 20 and 50 of the 172 passing tests) that preserves the suite's fault detection, and states what that claim is relative to (mutation operators / scope)",
+        "The claimed minimal subset was independently checked (e.g. a certificate or re-derivation showing every mutant the full suite kills is still killed)",
+        "Names specific boundary tests that must be kept, including at least two of: volume tier boundaries (10/50/100), coupon valid through expiry day, tax half-up rounding, releasing more than reserved raises",
+        "Identifies near-duplicate clusters that should become parametrized tables or properties (at least 3 clusters, with examples)",
+        "Flags implementation-coupled / over-mocked tests (patching private helpers, asserting private attributes or call order) as low-value or harmful",
+        "Flags no-assertion or tautological tests and the sleep and permanently-skipped tests",
+        "Identifies the CI retry loop as hiding flakiness and recommends quarantine / tiers instead",
+        "Accounts for the three historical bug fixes in git history (e.g. checks the suite still catches them / uses them as real-fault evidence)",
+        "Did not modify tests/ or shop/"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "shop-reduce",
+      "fixture": "py-bloated-shop",
+      "expected_skill": "test-reduce",
+      "prompt": "This test suite is bloated (agents kept adding tests on every change). Cut it down radically so it's lean and maintainable, but we cannot afford to lose any real protection, especially around money. Go ahead and make the changes.",
+      "assertions": [
+        "The fast/PR-tier suite (tests not marked probation/quarantine/slow) has at most 60 tests and passes",
+        "Evidence that no fault detection was lost: a before/after mutation comparison (or certificate) showing every previously killed mutant is still killed by the retained suite",
+        "The retained suite still catches all three historical bugs from git history (coupon expiry off-by-one, banker's rounding, over-release)",
+        "Near-duplicate example tests were consolidated into parametrized tables and/or property-based tests (at least 2 clusters)",
+        "Unique boundary tests were kept (volume tiers at 50/100, expiry day, tax half-up, over-release)",
+        "Removed tests were staged reversibly (e.g. demoted to a probation/nightly tier) or each removal is justified by a certificate; no bulk deletion on faith",
+        "Tautological, no-assertion, sleep-based and permanently skipped tests were removed or fixed",
+        "Did not modify the shop/ source code"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "loyalty-greenfield",
+      "fixture": "py-greenfield-loyalty",
+      "expected_skill": "test-plan",
+      "prompt": "Implement the tiered loyalty feature described in SPEC.md, test-first. The public API from SPEC.md should be importable from the `loyalty` package. We've been burned by test bloat before, so keep the test suite sustainable while still covering what matters.",
+      "assertions": [
+        "The implementation passes the hidden acceptance tests (graded objectively)",
+        "New tests are organized around the spec's behaviors/partitions (tables over boundary classes and/or properties) rather than many one-off examples",
+        "The new test suite has at most 30 test cases added (parametrized rows count) while achieving a mutation score of at least 85% on the new loyalty code",
+        "Boundary classes from the spec are covered: tier thresholds (999/1000, 4999/5000, 19999/20000), 500-point minimum, capping, 50% review boundary",
+        "At least one property-based or invariant test is used where the spec states a rule (e.g. monotone tiers, lifetime never decreases, balance never negative)",
+        "Expected values come from the spec (not computed by calling the implementation)",
+        "The final summary reports what tests were written and what was pruned or consolidated during TDD"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "constitution-setup",
+      "fixture": "py-bloated-shop",
+      "expected_skill": "test-constitution",
+      "prompt": "Agents keep piling tests onto this repo and I want that to stop going forward. Set up testing governance for this project that our agents and CI will actually enforce. Money-related code (pricing, discounts, tax) should be held to a stricter standard than the rest.",
+      "assertions": [
+        "Creates a written testing policy/constitution covering: test budget, admission of new tests only when they add unique value, pruning scaffolding tests, behavior-over-implementation, flaky-test handling, and how tests may be deleted",
+        "Creates a machine-readable policy with concrete numbers (budget, per-change limit, thresholds) that a CI step reads",
+        "Money-related code (pricing, discounts, tax) gets a stricter, explicitly configured tier than the rest",
+        "Adequacy is defined by fault detection (e.g. mutation score) per risk tier rather than a single global line-coverage percentage",
+        "A CI job enforces the policy on pull requests (not only documentation)",
+        "Agent instructions (CLAUDE.md or AGENTS.md) tell agents the rules at the moment they write tests",
+        "Adoption does not break CI on day one (budgets start at or above the current state; the enforcement passes on the current repo)",
+        "Removes or replaces the retry-until-green loop in CI with a flake quarantine approach"
+      ]
+    }
+  ]
+}

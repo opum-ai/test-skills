@@ -6,6 +6,7 @@ rigor = "{{rigor}}"                  # project default profile: R1 Minimal .. R5
 constitution = "TEST-CONSTITUTION.md"
 baseline = ".test-baseline.json"
 source = ["{{src}}"]                 # source roots; used for private-API coupling checks
+test_roots = ["tests"]               # the suites the gate judges (fixtures and vendored tests are not yours)
 
 [budget]                            # Article II
 max_tests = {{max_tests}}           # total ceiling; default ~= current count after the first audit

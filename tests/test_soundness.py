@@ -50,18 +50,20 @@ def test_a_killer_that_shares_a_module_fixture_is_credited(tmp_path):
 
 
 def test_order_dependent_false_kills_are_caught_by_the_empirical_rerun(tmp_path):
-    # test_c_weak only passes after test_a has run; in subset runs it "fails" and looks like a killer.
-    p = project(tmp_path, "STATE = {}\n\n\ndef double(x):\n    return x * 2\n",
-                "from pkg import STATE, double\n\n\ndef test_a():\n    STATE['ready'] = True\n    assert double(2) == 4\n\n\n"
-                "def test_c_weak():\n    assert STATE.get('ready')\n    double(3)\n")
-    collect(p)
+    # test_c_weak only passes after test_a has run; in subset runs it "fails" and looks like a
+    # killer of triple()'s mutants. The plan is VALID against the matrix; replaying the mutants
+    # against the retained suite (where test_a runs first) shows nothing actually catches them.
+    # triple() is covered by test_c_weak alone, so its mutants run test_c_weak without test_a.
+    p = project(tmp_path, "STATE = {}\n\n\ndef double(x):\n    return x * 2\n\n\ndef triple(x):\n    return x * 3\n",
+                "from pkg import STATE, double, triple\n\n\ndef test_a():\n    STATE['ready'] = True\n    assert double(2) == 4\n\n\n"
+                "def test_c_weak():\n    assert STATE.get('ready')\n    triple(3)\n")
+    m = collect(p)
     code, out = tmx(p, "analyze", ".tmx/m.json", "-o", ".tmx/p.json")
-    code, out = tmx(p, "verify", ".tmx/p.json", ".tmx/m.json", "--rerun", "--jobs", "2")
     plan = json.loads((p / ".tmx" / "p.json").read_text())
-    if plan["keep"] == ["tests/test_p.py::test_c_weak"]:
-        assert code == 3 and "INVALID" in out          # the bogus certificate is refused
-    else:
-        assert code == 0 and "replayed" in out          # or the plan never relied on it
+    assert code == 0 and "tests/test_p.py::test_c_weak" in plan["keep"]          # the matrix believes it
+    assert tmx(p, "verify", ".tmx/p.json", ".tmx/m.json")[0] == 0                # statically VALID
+    code, out = tmx(p, "verify", ".tmx/p.json", ".tmx/m.json", "--rerun", "--jobs", "2")
+    assert code == 3 and "INVALID (empirical)" in out                            # reality disagrees
 
 
 def test_a_hang_is_attributed_to_the_test_that_hangs(tmp_path):

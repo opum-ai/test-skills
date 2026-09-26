@@ -37,7 +37,7 @@ def main() -> int:
         adm = policy.get("admission", {})
         forbid = set(adm.get("forbid_smells", []))
         max_mocks = adm.get("max_mocks_per_test")
-        items = smells._py_smells(path, policy.get("source", [])) if path.endswith(".py") else smells._js_smells(path)
+        items = smells.py_smells(path, policy.get("source", [])) if path.endswith(".py") else smells.js_smells(path)
         bad = []
         for s in items:
             if s["smell"] in forbid:

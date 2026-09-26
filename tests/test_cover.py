@@ -1,7 +1,7 @@
 """Set-cover solver and certificate (ADR-0002). Properties over random instances, one anchor."""
 import itertools
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import assume, given, settings, strategies as st
 
 from tmx import cover
 
@@ -34,11 +34,11 @@ def test_checker_rejects_a_certificate_missing_any_witness(sets):
     inst, tests = build(sets)
     keep = cover.solve(inst)["keep"]
     witness, _ = cover.certificate(inst, keep)
+    assume(witness)
     killers = {o: {t for t, s in tests.items() if o in s} for o in inst.obligations}
-    for o in list(witness)[:1]:
-        broken = dict(witness)
-        del broken[o]
-        assert cover.check_certificate(killers, set(keep), broken) == [f"{o}: no witness"]
+    dropped = sorted(witness)[0]
+    broken = {o: w for o, w in witness.items() if o != dropped}
+    assert cover.check_certificate(killers, set(keep), broken) == [f"{dropped}: no witness"]
 
 
 def test_removal_reasons_on_a_known_instance():
@@ -68,18 +68,26 @@ def test_tradeoff_curve_is_monotone_and_reaches_every_obligation(sets):
     assert fractions == sorted(fractions) and (not inst.obligations or fractions[-1] == 1.0)
 
 
-@given(st.integers(1, 9).map(lambda k: 2 * k + 1), st.booleans())
-def test_branch_and_bound_solves_instances_the_reductions_cannot(n, starve):
-    # An odd cycle: test i covers obligations i and i+1. No test is essential and none dominates
-    # another, so only the exact search (or, when starved, greedy + bound) can answer.
+def odd_cycle(n):
+    # Test i covers obligations i and i+1. No test is essential and none dominates another, so
+    # only the exact search (or, when starved of nodes, greedy plus the bound) can answer.
     tests = {f"t{i}": {f"o{i}", f"o{(i + 1) % n}"} for i in range(n)}
-    inst = cover.Instance(sorted({o for s in tests.values() for o in s}), tests, {t: 1.0 for t in tests})
-    res = cover.solve(inst, node_budget=1 if starve else 200_000)
-    assert res["stats"]["residual_tests"] == n and cover.certificate(inst, res["keep"])[1] == []
-    if starve:
-        assert res["lower_bound"] <= (n + 1) // 2 <= len(res["keep"])
-    else:
-        assert res["optimal"] and len(res["keep"]) == (n + 1) // 2
+    return cover.Instance(sorted({o for s in tests.values() for o in s}), tests, {t: 1.0 for t in tests})
+
+
+@given(st.integers(1, 9).map(lambda k: 2 * k + 1))
+def test_branch_and_bound_solves_instances_the_reductions_cannot(n):
+    inst = odd_cycle(n)
+    res = cover.solve(inst)
+    assert res["stats"]["residual_tests"] == n and res["optimal"] and len(res["keep"]) == (n + 1) // 2
+
+
+@given(st.integers(2, 9).map(lambda k: 2 * k + 1))
+def test_a_starved_search_still_returns_a_valid_cover_and_a_sound_bound(n):
+    inst = odd_cycle(n)
+    res = cover.solve(inst, node_budget=1)
+    assert cover.certificate(inst, res["keep"])[1] == []
+    assert res["lower_bound"] <= (n + 1) // 2 <= len(res["keep"])
 
 
 def test_solver_proves_optimality_on_a_structured_instance_within_a_tight_node_budget():

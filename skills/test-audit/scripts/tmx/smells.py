@@ -45,6 +45,11 @@ def _test_functions(tree):
                     yield node.name, sub
 
 
+def _guards_assertion(node) -> bool:
+    return any(isinstance(x, ast.Assert) or (isinstance(x, ast.Call) and ASSERT_CALL.match(_call_name(x)))
+               for x in ast.walk(node))
+
+
 def _pure(e) -> bool:
     """No calls anywhere in the expression (so comparing it with itself cannot fail)."""
     return not any(isinstance(x, (ast.Call, ast.Await, ast.Yield, ast.NamedExpr)) for x in ast.walk(e))
@@ -59,7 +64,7 @@ def _call_name(call: ast.Call) -> str:
     return ""
 
 
-def _py_smells(path: str, src_roots: List[str]) -> List[dict]:
+def py_smells(path: str, src_roots: List[str]) -> List[dict]:
     with open(path) as f:
         text = f.read()
     try:
@@ -108,8 +113,8 @@ def _py_smells(path: str, src_roots: List[str]) -> List[dict]:
                 for item in n.items:
                     if isinstance(item.context_expr, ast.Call) and _call_name(item.context_expr) in ("raises", "warns"):
                         asserts += 1
-            elif isinstance(n, (ast.If, ast.For, ast.While)) and n is not fn:
-                branches += 1
+            elif isinstance(n, (ast.If, ast.For, ast.While)) and n is not fn and _guards_assertion(n):
+                branches += 1   # branching or looping around an assertion (a loop that builds data is fine)
             elif isinstance(n, ast.Try):
                 if any(all(isinstance(s, ast.Pass) for s in h.body) for h in n.handlers):
                     swallow += 1
@@ -156,7 +161,7 @@ def _py_smells(path: str, src_roots: List[str]) -> List[dict]:
     return out
 
 
-def _js_smells(path: str) -> List[dict]:
+def js_smells(path: str) -> List[dict]:
     with open(path, errors="replace") as f:
         text = f.read()
     out = []
@@ -190,7 +195,7 @@ def main(a) -> int:
     n_files = 0
     for f in _files(a.paths):
         n_files += 1
-        smells += _py_smells(f, a.src) if f.endswith(".py") else _js_smells(f)
+        smells += py_smells(f, a.src) if f.endswith(".py") else js_smells(f)
     by_kind: Dict[str, int] = {}
     for s in smells:
         by_kind[s["smell"]] = by_kind.get(s["smell"], 0) + 1

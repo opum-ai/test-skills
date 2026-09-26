@@ -29,9 +29,8 @@ def f(x, flag):
 def test_every_family_yields_parseable_distinct_mutants():
     original = ast.unparse(ast.parse(SRC))
     muts = list(mutate_py.mutants_for(SRC, mutate_py.ALL_OPERATORS))
-    for line, fam, desc, src in muts:
-        assert src != original and ast.parse(src)
-        assert "Docstring is never mutated." in src
+    assert all(src != original and ast.parse(src) for *_, src in muts)
+    assert all("Docstring is never mutated." in src for *_, src in muts)
     assert {fam for _, fam, _, _ in muts} == set(mutate_py.ALL_OPERATORS)
     assert len({src for *_, src in muts}) == len(muts)
     descs = {desc for _, _, desc, _ in muts}

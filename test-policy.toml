@@ -6,6 +6,7 @@ rigor = "R3"                  # project default profile: R1 Minimal .. R5 High-A
 constitution = "TEST-CONSTITUTION.md"
 baseline = ".test-baseline.json"
 source = ["skills/test-audit/scripts/tmx"]                 # source roots; used for private-API coupling checks
+test_roots = ["tests"]               # evals/fixtures holds deliberately bloated suites
 
 [budget]                            # Article II
 max_tests = 60           # total ceiling; default ~= current count after the first audit

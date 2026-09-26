@@ -40,10 +40,10 @@ def load_policy(path: str) -> dict:
         import tomllib  # Python 3.11+
         return tomllib.loads(raw.decode())
     except ImportError:
-        return _mini_toml(raw.decode())
+        return mini_toml(raw.decode())
 
 
-def _mini_toml(text: str) -> dict:
+def mini_toml(text: str) -> dict:
     """Subset of TOML sufficient for test-policy.toml on Python < 3.11: tables, arrays of
     tables, strings, numbers, booleans, flat arrays and inline tables of scalars."""
     root: dict = {}
@@ -315,8 +315,10 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
     # Article IV / VI / X - smells in the tests this change touched
     forbid = set(R["forbid_smells"])
     if base and (forbid or R["max_mocks_per_test"] is not None):
+        roots = policy.get("test_roots")   # judge only the project's own suites (not fixtures or vendored code)
         changed = [f for f in _changed(root, base, "AMR")
-                   if re.search(r"(test_.*\.py|_test\.py|\.(test|spec)\.[jt]sx?)$", f)]
+                   if re.search(r"(test_.*\.py|_test\.py|\.(test|spec)\.[jt]sx?)$", f)
+                   and (not roots or any(f == r.rstrip("/") or f.startswith(r.rstrip("/") + "/") for r in roots))]
         info["changed_test_files"] = changed
         if changed:
             from . import smells
@@ -324,7 +326,7 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
             for f in changed:
                 p = os.path.join(root, f)
                 if os.path.exists(p):
-                    items += smells._py_smells(p, policy.get("source", [])) if p.endswith(".py") else smells._js_smells(p)
+                    items += smells.py_smells(p, policy.get("source", [])) if p.endswith(".py") else smells.js_smells(p)
             touched = _touched_lines(root, base, changed)
             items = [s for s in items if any(ln in touched.get(os.path.relpath(s["file"], root), set())
                                              for ln in range(s.get("start", s["line"]), (s.get("end") or s["line"]) + 1))]
@@ -452,7 +454,7 @@ def main(a) -> int:
             print(f"gate: {rel} does not exist at {a.base}; judging by the working-tree policy (first adoption)")
             source = "head"
         else:
-            policy = _mini_toml(text) if not _has_tomllib() else __import__("tomllib").loads(text)
+            policy = mini_toml(text) if not _has_tomllib() else __import__("tomllib").loads(text)
     if source == "head":
         if not os.path.exists(a.policy):
             print(f"no policy at {a.policy}; run the test-constitution skill to create one")

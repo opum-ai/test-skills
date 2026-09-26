@@ -28,7 +28,7 @@ CASES = [
 def test_smells(tmp_path, src, expected):
     p = tmp_path / "test_s.py"
     p.write_text(src)
-    assert {s["smell"] for s in smells._py_smells(str(p), ["pkg"])} == expected
+    assert {s["smell"] for s in smells.py_smells(str(p), ["pkg"])} == expected
 
 
 def test_clones_cluster_copy_paste_tests_and_report_the_varying_literals(tmp_path):

@@ -53,7 +53,7 @@ def test_rigor_levels(repo, monkeypatch, level, env, expected_rules, passed):
     monkeypatch.delenv("TMX_PR_APPROVERS", raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
-    res = gate.run(gate._mini_toml(POLICY.format(level=level)), root=str(repo), base="main")
+    res = gate.run(gate.mini_toml(POLICY.format(level=level)), root=str(repo), base="main")
     assert {v["rule"] for v in res["violations"]} == expected_rules and res["passed"] is passed
 
 
@@ -70,7 +70,7 @@ def test_mini_toml_matches_tomllib_on_the_shipped_template():
     text = (text.replace("{{critical_paths}}", '["a/**"]').replace("{{max_tests}}", "10")
             .replace("{{max_seconds}}", "60").replace("{{src}}", "pkg").replace("{{rigor}}", "R3")
             .replace("{{critical_rigor}}", "R4"))
-    assert gate._mini_toml(text) == tomllib.loads(text)
+    assert gate.mini_toml(text) == tomllib.loads(text)
 
 
 def test_unknown_base_ref_is_a_usage_error(repo):
@@ -109,5 +109,5 @@ def test_adding_only_a_skip_decorator_to_an_existing_test_is_caught(tmp_path):
     git(tmp_path, "checkout", "-qb", "pr")
     (tmp_path / "tests" / "test_a.py").write_text("import pytest\n\n\n@pytest.mark.skip('flaky')\ndef test_a():\n    assert 1 + 1 == 2\n")
     git(tmp_path, "commit", "-qam", "skip it")
-    res = gate.run(gate._mini_toml(POLICY.format(level="R3")), root=str(tmp_path), base="main")
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), base="main")
     assert "smell:skipped" in {v["rule"] for v in res["violations"]}

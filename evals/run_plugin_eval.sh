@@ -20,8 +20,9 @@
 #     status                          one line per suite: "<suite> running|exit=<code>"
 #     DONE                            written last; its presence means the whole run finished
 #
-# EVAL_PYTHON: an interpreter with pytest, coverage and hypothesis (the Python task cases need
-# them). Its bin directory is put first on PATH for the agents. Defaults to python3.
+# Python: the project's .venv (created with uv by evals/setup_env.sh on first use), or set
+# EVAL_PYTHON to another interpreter with pytest, coverage and hypothesis. Its bin directory
+# is put first on PATH for the agents.
 # The report is kept local (--no-publish) unless you pass --publish-report.
 set -uo pipefail
 
@@ -35,7 +36,12 @@ LOG_ROOT="${LOG_ROOT:-/tmp/test-skills-plugin-eval}"
 DIR="$LOG_ROOT/$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$DIR" && ln -sfn "$DIR" "$LOG_ROOT/latest"
 
-PY="${EVAL_PYTHON:-python3}"
+# The project env (.venv, built by evals/setup_env.sh with uv) is the default; it is created on first use.
+if [[ -z "${EVAL_PYTHON:-}" ]]; then
+  "$ROOT/evals/setup_env.sh" || exit 1
+  EVAL_PYTHON="$ROOT/.venv/bin/python"
+fi
+PY="$EVAL_PYTHON"
 if ! "$PY" -c "import pytest, coverage, hypothesis" 2>/dev/null; then
   echo "EVAL_PYTHON=$PY lacks pytest/coverage/hypothesis; the Python task cases need them." >&2
   [[ " ${SUITES[*]} " == *" task "* ]] && exit 1

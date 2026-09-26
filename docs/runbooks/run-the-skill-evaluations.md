@@ -60,8 +60,10 @@ claims. There are two suites:
    - **Before the run,** the script regenerates `evals/cases` from `evals/evals.json` and
      `evals/triggers.py`. It installs the TypeScript fixture's `node_modules` if they are
      missing.
-   - **Python.** It puts `EVAL_PYTHON`, an interpreter with pytest, coverage and hypothesis,
-     first on `PATH`.
+   - **Python.** The project environment is `.venv`, which is git-ignored.
+     `evals/setup_env.sh` builds it with uv from the pinned `evals/requirements.txt`, and the
+     runner calls that script itself on first use. Set `EVAL_PYTHON` to use another
+     interpreter instead. Either way, it goes first on `PATH` for the agents.
    - **Where the output goes.** Each invocation writes to
      `/tmp/test-skills-plugin-eval/<timestamp>/`, with `latest` symlinked to it. `LOG_ROOT`
      overrides the location. The directory holds:

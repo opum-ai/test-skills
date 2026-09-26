@@ -21,7 +21,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-python@v5
         with: { python-version: "${{ matrix.python }}" }
-      - run: pip install pytest coverage hypothesis
+      - run: pip install -r evals/requirements.txt
       - name: Engine tests (PR tier)
         run: python -m pytest -q -m "not slow" --junitxml=report.xml
       - name: Test constitution gate (this repo's own policy)
@@ -38,5 +38,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install pytest coverage hypothesis
+      - run: pip install -r evals/requirements.txt
       - run: python -m pytest -q -m slow

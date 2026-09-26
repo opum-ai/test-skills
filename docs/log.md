@@ -8,6 +8,7 @@
 - 2026-09-26T09:55:26-05:00 7694d9a2ac35edabe79e4ba07051da5e93905e0d Dogfood: adopt the test constitution in this repo (R3, certificate/gate math at R4); eval runbook; adopt --tests scoping
 - 2026-09-26T10:26:02-05:00 35350cafa2103a7c04c7bee8d202d406745bcc5c Tier slow engine tests (Article X, pytest.ini); clone rows in source order; clones/subsumes tests; close TS-1,2,4-10 with evidence
 - 2026-09-26T10:31:25-05:00 3e03c90df4bac613bf5fd7cad6a48c0643f9ae19 Close TS-3 (engine) with evidence; score/baseline and broken-harness tests; file TS-11 (engine below its own R4 floor)
+- 2026-09-26T11:34:11-05:00 8377e252e708c828cc80fef968e514b1012355af Repo CI (PR tier + constitution gate, nightly slow tier); refresh baseline; untrack local runtime and raw eval output
 
 ## docs/stories
 

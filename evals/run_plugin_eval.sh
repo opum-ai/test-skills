@@ -17,12 +17,14 @@
 #     <suite>.json                    the full result (per-run scores, grader verdicts)
 #     <suite>.html                    the HTML report
 #     <suite>/                        claude plugin eval's aggregate-result.json
+#     task-objective.{json,md}        grade.py on every kept task workspace (hidden tests, kill matrices)
 #     status                          one line per suite: "<suite> running|exit=<code>"
 #     DONE                            written last; its presence means the whole run finished
 #
 # Python: the project's .venv (created with uv by evals/setup_env.sh on first use), or set
 # EVAL_PYTHON to another interpreter with pytest, coverage and hypothesis. Its bin directory
 # is put first on PATH for the agents.
+# The agent model is pinned to EVAL_MODEL (default claude-opus-5-5); graders use plugin eval's judge.
 # The report is kept local (--no-publish) unless you pass --publish-report.
 set -uo pipefail
 
@@ -66,6 +68,8 @@ python3 "$ROOT/evals/make_cases.py" >/dev/null   # cases always match evals/eval
   echo "python=$(command -v "$PY") $("$PY" --version 2>&1)"; echo "node=$(node --version 2>/dev/null)"
 } > "$DIR/run.env"
 
+# Pin the agent model so results are comparable across runs and with the skill-creator benchmark.
+MODEL="${EVAL_MODEL:-claude-opus-5-5}"; echo "model=$MODEL" >> "$DIR/run.env"
 PUBLISH=(--no-publish); for a in "$@"; do [[ "$a" == --publish-report ]] && PUBLISH=(); done
 worst=0
 for s in "${SUITES[@]}"; do
@@ -73,13 +77,14 @@ for s in "${SUITES[@]}"; do
     trigger) ARGS=(--tag trigger --ablation none -j 8) ;;
     # Task agents must run the suite and edit files. plugin eval gates Bash/Write/Edit behind an
     # operator grant, whatever the case's allowed_tools say; without it every agent is read-only.
-    task)    ARGS=(--tag task -j 5 --allow-tools Bash Write Edit) ;;   # default ablation: with and without
+    # --keep-temp keeps each run's workspace so grade.py can check it objectively afterwards.
+    task)    ARGS=(--tag task -j 5 --allow-tools Bash Write Edit --keep-temp) ;;   # default ablation: with and without
   esac
   echo "$s running" >> "$DIR/status"
   echo "[$(date +%T)] $s -> $DIR/$s.log"
   # --scaffold runs our own case scripts (they copy a fixture into the workspace);
   # --trust-plugin skips the interactive trust prompt, which would otherwise wait unseen.
-  CMD=(claude --debug-file "$DIR/$s.debug.log" plugin eval . "${ARGS[@]}" --verbose
+  CMD=(claude --debug-file "$DIR/$s.debug.log" plugin eval . "${ARGS[@]}" --model "$MODEL" --verbose
        --scaffold --trust-plugin --threshold 0
        --json "$DIR/$s.json" --report "$DIR/$s.html" --output-dir "$DIR/$s" ${PUBLISH[@]+"${PUBLISH[@]}"} "$@")
   # script(1) gives the eval a terminal, so you keep its live progress display, and records
@@ -90,6 +95,10 @@ for s in "${SUITES[@]}"; do
     script -qefc "$(printf '%q ' "${CMD[@]}")" "$DIR/$s.log"
   fi
   code=$?
+  if [[ "$s" == task && -f "$DIR/task.json" ]]; then
+    echo "[$(date +%T)] objective grading of the kept workspaces -> $DIR/task-objective.md"
+    python3 "$ROOT/evals/grade_plugin_eval.py" "$DIR/task.json" --python "$PY" > /dev/null || echo "objective grading failed" >&2
+  fi
   echo "$s exit=$code" >> "$DIR/status"
   (( code > worst )) && worst=$code
 done

@@ -12,7 +12,9 @@
 - 2026-09-26T11:46:19-05:00 4779571f06ad4111711a2b07ad8298d506a50f49 test-skills 0.1.0: sustainable test suites for agentic engineering (#1)
 - 2026-09-26T12:03:57-05:00 58c0accf370ecc25bb04851b9dbaab05ce2252aa TS/Stryker path verified on a real project: TS fixture, importer guards (bail, vacuous vitest 5), stable Stryker keys, JS smells; real-report regression tests; close TS-13
 - 2026-09-26T12:04:51-05:00 bb5e1309a07de524d1228766bdbe6d5861a3e744 TS-13: verify the JS/TS path on a real Stryker run (#3)
+- 2026-09-26T13:14:28-05:00 a492149f28a0c3b0678d4b96d84192a9e3dc6bfe TS-14: skill-creator iteration 1 results (3 runs/arm), grader-driven skill fixes
 
 ## docs/stories
 
 - 2026-09-26T10:22:01-05:00 9480522527b2961eeaefd043ca870f128390f026 Exact-id protection from base ref (closes name-glob loophole); adopt --codeowners and protected.txt; evaluation results in story and README
+- 2026-09-26T13:14:43-05:00 fab44474ec02c053072d76275cecc8831a763110 TS-14: keep benchmark and run_loop summaries in evals/benchmarks/iteration-1

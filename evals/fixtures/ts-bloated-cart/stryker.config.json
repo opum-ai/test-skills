@@ -13,6 +13,5 @@
     "fileName": "reports/mutation/mutation.json"
   },
   "concurrency": 4,
-  "tempDirName": ".stryker-tmp",
-  "disableBail": true
+  "tempDirName": ".stryker-tmp"
 }

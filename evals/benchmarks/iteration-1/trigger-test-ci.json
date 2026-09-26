@@ -1,0 +1,13 @@
+{
+  "exit_reason": "all_passed (iteration 1)",
+  "original_description": "Design or fix a CI test pipeline that stays fast and trustworthy as the suite and the agent-driven change rate grow - PR vs nightly tiers under a time budget, affected-test selection, sharding, flake quarantine with an expiry, no retry-until-green, the test-constitution gate with a budget ratchet, diff-scoped mutation testing on PRs and full mutation nightly, probation runs, and rigor-level approvals. Use this skill whenever the user asks to speed up CI, restructure test jobs, add or fix a test gate, handle flaky tests, add mutation testing to CI, enforce test budgets or a test policy in GitHub Actions/GitLab/other CI, or says CI is slow, red for no reason, or can't keep up with agent PRs.",
+  "best_description": "Design or fix a CI test pipeline that stays fast and trustworthy as the suite and the agent-driven change rate grow - PR vs nightly tiers under a time budget, affected-test selection, sharding, flake quarantine with an expiry, no retry-until-green, the test-constitution gate with a budget ratchet, diff-scoped mutation testing on PRs and full mutation nightly, probation runs, and rigor-level approvals. Use this skill whenever the user asks to speed up CI, restructure test jobs, add or fix a test gate, handle flaky tests, add mutation testing to CI, enforce test budgets or a test policy in GitHub Actions/GitLab/other CI, or says CI is slow, red for no reason, or can't keep up with agent PRs.",
+  "best_score": "8/8",
+  "best_train_score": "12/12",
+  "best_test_score": "8/8",
+  "final_description": "Design or fix a CI test pipeline that stays fast and trustworthy as the suite and the agent-driven change rate grow - PR vs nightly tiers under a time budget, affected-test selection, sharding, flake quarantine with an expiry, no retry-until-green, the test-constitution gate with a budget ratchet, diff-scoped mutation testing on PRs and full mutation nightly, probation runs, and rigor-level approvals. Use this skill whenever the user asks to speed up CI, restructure test jobs, add or fix a test gate, handle flaky tests, add mutation testing to CI, enforce test budgets or a test policy in GitHub Actions/GitLab/other CI, or says CI is slow, red for no reason, or can't keep up with agent PRs.",
+  "iterations_run": 1,
+  "holdout": 0.4,
+  "train_size": 12,
+  "test_size": 8
+}

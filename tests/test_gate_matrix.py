@@ -110,3 +110,29 @@ def test_protection_is_by_exact_id_from_the_protected_file_not_by_name(tmp_path,
     res = gate.run(policy, root=str(tmp_path), matrix_path=write(tmp_path, "m.json", MATRIX))
     weak = [v["message"].split()[0] for v in res["violations"] if v["rule"] == "require_unique_kill"]
     assert weak == ["new_dup"]      # new_dup is still judged; only the listed id is exempt
+
+
+def test_a_change_cannot_triage_its_own_survivors_without_approval(tmp_path, monkeypatch):
+    import subprocess
+    g = lambda *a: subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *a], cwd=tmp_path,  # noqa: E731
+                                  check=True, capture_output=True)
+    (tmp_path / "testing").mkdir()
+    write(tmp_path, "testing/survivors.json", {})
+    g("init", "-q", "-b", "main")
+    g("add", "-A")
+    g("commit", "-qm", "base")
+    g("checkout", "-qb", "pr")
+    (tmp_path / "pay").mkdir()
+    (tmp_path / "pay" / "x.py").write_text("# changed\n")
+    write(tmp_path, "testing/survivors.json", {"pay/x.py:3:cmp:< -> <=": {"verdict": "equivalent", "reason": "trust me"}})
+    g("add", "-A")
+    g("commit", "-qm", "self-triage")
+    m = {"schema": "test-matrix/1", "tests": {"t": {}}, "coverage": {},
+         "mutants": {"c": mut("pay/x.py", "survived", [], line=3)}}
+    policy = {"rigor": "R3", "adequacy": {"tier": [{"name": "pay", "paths": ["pay/*"], "rigor": "R4"}]}}
+    monkeypatch.delenv("TMX_PR_APPROVERS", raising=False)
+    rules = lambda: {v["rule"] for v in gate.run(policy, root=str(tmp_path), base="main",  # noqa: E731
+                                                  matrix_path=write(tmp_path, "m.json", m))["violations"]}
+    assert "triage_needs_approval" in rules()
+    monkeypatch.setenv("TMX_PR_APPROVERS", "alice")
+    assert "triage_needs_approval" not in rules() and "triage_survivors" not in rules()

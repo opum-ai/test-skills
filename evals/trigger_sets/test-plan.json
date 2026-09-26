@@ -1,0 +1,82 @@
+[
+ {
+  "query": "implement the coupon stacking rules from SPEC.md test-first. last time the agent wrote 60 near-identical tests for this kind of thing, please don't",
+  "should_trigger": true
+ },
+ {
+  "query": "what tests does lineTotal() actually need? it has the 10/50/100 volume tiers and the 999 quantity cap. i don't want 40 copy-paste examples",
+  "should_trigger": true
+ },
+ {
+  "query": "do TDD on the invoice rounding change in shop/money.py \u2014 plan the test cases from the spec first, then write them",
+  "should_trigger": true
+ },
+ {
+  "query": "add tests for the new region rules in shop/tax.py (NY grocery exemption, OR no tax). only what's needed to cover the boundaries",
+  "should_trigger": true
+ },
+ {
+  "query": "i'm adding a coupon expiry feature, design the minimal test set, use properties where it makes sense",
+  "should_trigger": true
+ },
+ {
+  "query": "Before I write any code for the loyalty tiers, help me figure out the test plan \u2014 equivalence classes, boundaries, which parts should be property-based",
+  "should_trigger": true
+ },
+ {
+  "query": "write the tests for this new function first (red/green/refactor), but keep the suite sustainable - we're on a test budget",
+  "should_trigger": true
+ },
+ {
+  "query": "our test constitution says new tests must kill a mutant nothing else kills. implement the redemption cap in loyalty/account.py and write tests that pass that rule",
+  "should_trigger": true
+ },
+ {
+  "query": "add a bug-fix test for issue #212 (discount applied twice when coupon code has trailing space) and fix it",
+  "should_trigger": true
+ },
+ {
+  "query": "how should I test the new yearly_review() demotion logic without writing a test per tier per case?",
+  "should_trigger": true
+ },
+ {
+  "query": "delete the redundant tests in tests/test_cart.py, there are like 30 of them doing the same thing",
+  "should_trigger": false
+ },
+ {
+  "query": "set up a nightly CI job for the slow tests",
+  "should_trigger": false
+ },
+ {
+  "query": "explain what property-based testing is and when it beats example tests",
+  "should_trigger": false
+ },
+ {
+  "query": "audit the tests in this repo and tell me which ones are useless",
+  "should_trigger": false
+ },
+ {
+  "query": "set up testing governance so agents stop bloating the suite",
+  "should_trigger": false
+ },
+ {
+  "query": "fix the failing test_cart_total test in tests/test_cart.py",
+  "should_trigger": false
+ },
+ {
+  "query": "make the pytest suite run in parallel with xdist",
+  "should_trigger": false
+ },
+ {
+  "query": "prove mathematically that our parse_duration tests cover every input class",
+  "should_trigger": false
+ },
+ {
+  "query": "rename the test files to follow test_<module>.py convention",
+  "should_trigger": false
+ },
+ {
+  "query": "write a README section explaining how to run the tests",
+  "should_trigger": false
+ }
+]

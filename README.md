@@ -103,7 +103,19 @@ full results. Graders never trust the agent's own claims:
 - they check that the three real historical bugs are still caught;
 - they run hidden acceptance tests the agent never saw.
 
-Results on 2026-09-26 (claude-opus-5-5; one run per arm, blind A/B graders):
+Iteration 1 of the skill-creator benchmark (2026-09-26, claude-opus-5-5): 5 cases, 3 runs per
+arm, assertion graders plus objective grading. Assertion pass rate was **96% ± 6% with the skills vs 87% ±
+11% without**, at +36% tokens and +20% time.
+
+| Case | With skills | Without | Objective difference |
+|---|---|---|---|
+| Reduce a bloated suite (172 tests) | **8/8 ×3** | 5, 7, 7 | PR tier **49–57** vs 97–109 items; **0 lost kills** in every skill run, while a baseline lost a tax-rate kill |
+| Audit a bloated suite | **13/13 ×3** | 12, 11, 12 | domain faults and reversible staging only with the skills |
+| Implement a spec test-first | **6/7 ×3** | 5, 5, 6 | 43/43 hidden tests in all runs; 34–41 vs 36–52 cases added; no smells vs ≥1 |
+| Set up test governance | **8, 7, 8** | 7, 7, 8 | one skill run was red on day one for money files; now a required check |
+| Audit a TypeScript suite (Stryker) | 9, 9, 8 | 9, 9, 8 | no difference; this case needs a hidden fault set |
+
+Earlier single-run blind A/B comparison (same day):
 
 | Case | With skills | Without | What differed |
 |---|---|---|---|

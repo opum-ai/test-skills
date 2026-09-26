@@ -19,6 +19,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "test-audit", "scripts"))
 
 
+def _touched(path: str):
+    """Lines that differ from HEAD (None = judge the whole file: untracked, or not a git repo)."""
+    import subprocess
+    d = os.path.dirname(os.path.abspath(path))
+    try:
+        tracked = subprocess.run(["git", "ls-files", "--error-unmatch", os.path.basename(path)], cwd=d,
+                                 capture_output=True).returncode == 0
+        if not tracked:
+            return None
+        diff = subprocess.run(["git", "diff", "-U0", "HEAD", "--", os.path.basename(path)], cwd=d,
+                              capture_output=True, text=True, check=True).stdout
+    except Exception:
+        return None
+    out = set()
+    for line in diff.splitlines():
+        if line.startswith("@@"):
+            m = re.search(r"\+(\d+)(?:,(\d+))?", line)
+            start, n = int(m.group(1)), int(m.group(2) or 1)
+            out.update(range(start, start + n))
+    return out
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -32,21 +54,31 @@ def main() -> int:
         policy_path = os.path.join(d, "test-policy.toml")
         if not os.path.exists(policy_path) or not os.path.exists(path):
             return 0
-        from tmx import gate, smells
+        from tmx import gate, rigor, smells
         policy = gate.load_policy(policy_path)
-        adm = policy.get("admission", {})
-        forbid = set(adm.get("forbid_smells", []))
-        max_mocks = adm.get("max_mocks_per_test")
+        # Same rules as the gate: the rigor profile's floors, tightened (never loosened) by the policy.
+        level = rigor.highest([policy.get("rigor", "R3"),
+                               *[t.get("rigor") for t in policy.get("adequacy", {}).get("tier", [])]])
+        R = rigor.rules(level, policy)
+        forbid = set(R["forbid_smells"])
+        max_mocks = R["max_mocks_per_test"]
         items = smells.py_smells(path, policy.get("source", [])) if path.endswith(".py") else smells.js_smells(path)
+        touched = _touched(path)
+        if touched is not None:   # judge only tests the edit touched; existing debt elsewhere is the audit's job
+            items = [s for s in items
+                     if any(ln in touched for ln in range(s.get("start", s["line"]), (s.get("end") or s["line"]) + 1))]
         bad = []
         for s in items:
             if s["smell"] in forbid:
                 bad.append(s)
-            elif s["smell"] == "mock-heavy" and max_mocks:
+            elif s["smell"] in ("mock-heavy", "mocks") and max_mocks is not None:
                 n = int(re.match(r"(\d+)", s["detail"]).group(1))
                 if n > max_mocks:
                     bad.append(s)
         if not bad:
+            return 0
+        if R["mode"] == "advisory":   # R1: tell, never block
+            print("\n".join(f"advisory: {b['smell']}: {b['detail']}" for b in bad), file=sys.stderr)
             return 0
         rel = os.path.relpath(path, d)
         lines = [f"Test constitution ({os.path.relpath(policy_path, root)}) violations in {rel}:"]

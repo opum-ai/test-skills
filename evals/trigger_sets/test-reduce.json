@@ -1,0 +1,82 @@
+[
+ {
+  "query": "cut this test suite down radically without losing real protection. make the changes",
+  "should_trigger": true
+ },
+ {
+  "query": "we have 3000 agent-written tests; slim it to something maintainable but don't lose what matters",
+  "should_trigger": true
+ },
+ {
+  "query": "consolidate the copy-paste tests in tests/test_pricing.py into parametrized tests and drop the redundant ones",
+  "should_trigger": true
+ },
+ {
+  "query": "act on the audit report in .tmx/findings.json: remove the certified-redundant tests safely",
+  "should_trigger": true
+ },
+ {
+  "query": "our suite is over the budget in test-policy.toml, bring it back under",
+  "should_trigger": true
+ },
+ {
+  "query": "delete the useless tests \u2014 the ones that assert nothing, the tautologies, the duplicates. keep anything that actually catches bugs",
+  "should_trigger": true
+ },
+ {
+  "query": "the test suite takes 20 min for a small service; get it down to something sane, i'm fine with fewer tests as long as we don't lose coverage of real bugs",
+  "should_trigger": true
+ },
+ {
+  "query": "merge test_cart.py and test_cart_regression.py and dedupe them, there's a ton of overlap",
+  "should_trigger": true
+ },
+ {
+  "query": "the probation window for the demoted tests is over, go ahead and prune them",
+  "should_trigger": true
+ },
+ {
+  "query": "turn these 15 discount example tests into one property test and remove the originals if nothing is lost",
+  "should_trigger": true
+ },
+ {
+  "query": "audit our tests but don't touch anything",
+  "should_trigger": false
+ },
+ {
+  "query": "refactor shop/cart.py to remove duplicate code",
+  "should_trigger": false
+ },
+ {
+  "query": "our tests fail intermittently on CI; what's going on?",
+  "should_trigger": false
+ },
+ {
+  "query": "write tests for the new refund endpoint",
+  "should_trigger": false
+ },
+ {
+  "query": "set up a policy so agents don't add so many tests in future",
+  "should_trigger": false
+ },
+ {
+  "query": "move the slow integration tests to a nightly job",
+  "should_trigger": false
+ },
+ {
+  "query": "why is test_releasing_more_than_reserved_raises failing after my change?",
+  "should_trigger": false
+ },
+ {
+  "query": "how many tests do we have and how long does the suite take?",
+  "should_trigger": false
+ },
+ {
+  "query": "upgrade pytest to 8.x and fix deprecation warnings",
+  "should_trigger": false
+ },
+ {
+  "query": "check whether our 40 parse_duration tests are provably enough",
+  "should_trigger": false
+ }
+]

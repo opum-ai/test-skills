@@ -1,8 +1,10 @@
-.tmx/
 __pycache__/
-*.pyc
+.claude/handovers/
 .DS_Store
+.hypothesis/
+.pytest_cache/
+.tmx/
+*.pyc
+evals/results-*.json
 evals/results/
 evals/workspaces/
-.claude/handovers/
-evals/results-*.json

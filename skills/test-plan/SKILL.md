@@ -87,6 +87,11 @@ first message.
        justifies;
      - merge tables that ended up testing the same class;
      - re-run the suite.
+     Pruning trims what the plan did not need. It does not lower the plan. Rows that
+     `tmx covering` generated to reach the model's strength t stay, even when today's mutants
+     don't separate them. A mutant set only samples the faults, while the covering array is the
+     adequacy claim you made in step 3. To drop to a lower t, change the plan and say why
+     in the report.
    - **Admission check.** Measure the new tests' marginal value with mutation on the changed
      source:
      ```bash

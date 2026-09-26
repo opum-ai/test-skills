@@ -169,6 +169,15 @@ def main(argv) -> int:
     pi.add_argument("report")
     pi.add_argument("-o", "--out", default=".tmx/matrix.json")
 
+    fl = sub.add_parser("faults", help="language-agnostic domain faults: text patches + any JUnit-writing test command")
+    fl.add_argument("faults_file", help='JSON list of {"file","find","replace","desc"}')
+    fl.add_argument("--cmd", dest="test_cmd", required=True, help='test command; {junit} is replaced with the report path')
+    fl.add_argument("--matrix", help="merge into this matrix (e.g. an imported Stryker matrix)")
+    fl.add_argument("-o", "--out", default=".tmx/matrix.json")
+    fl.add_argument("--root", default=".")
+    fl.add_argument("--jobs", type=int, default=4)
+    fl.add_argument("--timeout", type=float, default=300.0)
+
     sc = sub.add_parser("score", help="mutation score and suite stats")
     sc.add_argument("matrix")
     sc.add_argument("--survivors", action="store_true", help="list surviving / uncovered mutants")
@@ -326,6 +335,13 @@ def main(argv) -> int:
     if a.cmd == "import-pit":
         from . import importers
         return importers.pit(a.report, a.out)
+    if a.cmd == "faults":
+        from . import faults
+        import os
+        os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+        faults.run(a.root, json.load(open(a.faults_file)), a.test_cmd, a.matrix, a.out, jobs=a.jobs, timeout=a.timeout,
+                   log=lambda s: print(s, file=sys.stderr))
+        return 0
     if a.cmd == "score":
         return _score(a)
     if a.cmd == "analyze":

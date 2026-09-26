@@ -1,0 +1,82 @@
+[
+ {
+  "query": "prove these 40 tests for parse_duration are enough, or show which can go",
+  "should_trigger": true
+ },
+ {
+  "query": "can one property-based test replace this whole table of discount examples? show me it catches everything they catch",
+  "should_trigger": true
+ },
+ {
+  "query": "we need mathematically justified test adequacy for the tax module, not vibes",
+  "should_trigger": true
+ },
+ {
+  "query": "give me a covering array for these five config parameters and show our tests hit every pair",
+  "should_trigger": true
+ },
+ {
+  "query": "this component is R5 high-assurance; produce the verification evidence that our tests are complete against the spec",
+  "should_trigger": true
+ },
+ {
+  "query": "how do we know our tests for tier_for_points are enough? i want a real argument, with the input classes spelled out",
+  "should_trigger": true
+ },
+ {
+  "query": "replace the 25 example tests for redeem() with a property and a reference model, but only if you can show nothing is lost",
+  "should_trigger": true
+ },
+ {
+  "query": "bounded exhaustive check: verify cart_total against the spec formula for every cart up to 3 lines",
+  "should_trigger": true
+ },
+ {
+  "query": "what's the statistical confidence after 5,000 random inputs pass our fuzz test with no failures?",
+  "should_trigger": true
+ },
+ {
+  "query": "is our partition model for loyalty.redeem complete at 2-way? check it against the tests we have",
+  "should_trigger": true
+ },
+ {
+  "query": "model the job queue in TLA+ and find the race",
+  "should_trigger": false
+ },
+ {
+  "query": "how many tests do we have?",
+  "should_trigger": false
+ },
+ {
+  "query": "add a regression test for the null pointer bug in #88",
+  "should_trigger": false
+ },
+ {
+  "query": "audit the whole suite and tell me what's redundant",
+  "should_trigger": false
+ },
+ {
+  "query": "set up our testing constitution",
+  "should_trigger": false
+ },
+ {
+  "query": "write property-based tests for the new serializer",
+  "should_trigger": false
+ },
+ {
+  "query": "is this code thread safe? cache.py fill vs invalidate",
+  "should_trigger": false
+ },
+ {
+  "query": "cut the test suite down and demote what's redundant",
+  "should_trigger": false
+ },
+ {
+  "query": "explain the difference between statement coverage and MC/DC",
+  "should_trigger": false
+ },
+ {
+  "query": "make CI run hypothesis with more examples nightly",
+  "should_trigger": false
+ }
+]

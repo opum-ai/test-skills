@@ -43,8 +43,9 @@ The deliverable is four files and one CI step:
      certification. Offer R1/R2 for prototypes or internal tooling. The user can name a
      level directly ("set this repo up at Strict").
    - **`max_tests`.** If a `test-audit` exists, use its certified minimum plus 30–50%
-     headroom. Otherwise use today's count as a ceiling (it never grows), and plan an audit
-     to ratchet it down.
+     headroom. Otherwise use today's count plus one change's worth of new tests (the
+     `adopt.py` default), so a good test for a real gap is not blocked on day one. Then plan an
+     audit to ratchet it down.
    - **`max_suite_seconds`.** Aim for a PR tier under 5–10 minutes end to end.
    - **Mutation thresholds per tier.** The defaults are 0.80 critical and 0.60 standard,
      with glue ungated.
@@ -80,6 +81,13 @@ The deliverable is four files and one CI step:
    - Run `tmx gate --policy test-policy.toml --junit <xml>` once locally. On adoption day
      it must pass, since budgets start at today's state. Fix the policy, not the gate, if
      it does not.
+   - **At R4+, also run the PR gate on a no-op change to one file in each critical tier**
+     (a comment edit on a scratch branch, with its mutation step). R4 judges every surviving
+     mutant in a file the PR touches, so an untriaged survivor that predates adoption blocks
+     the next honest PR to that file and punishes it for old debt. Before you finish,
+     kill each real survivor with a test (preferred), or triage it in `testing/survivors.json`
+     as equivalent with a reason a reviewer can check. Do not leave the nightly or PR gate red
+     "for later". A gate that is red on day one gets disabled on day two.
    - Hand the CI wiring to `test-ci`, or use the minimal job in `references/ci-snippet.md`.
 5. **Optional: an edit-time guard for agents.** Offer to install the project-level Claude
    Code hook from `references/hooks.md`. It runs the smell check on every test file an agent

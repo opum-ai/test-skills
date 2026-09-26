@@ -84,7 +84,9 @@ def main(argv) -> int:
     if a.junit:  # parametrized rows are separate cases; only a real run counts them
         import xml.etree.ElementTree as ET
         n = sum(1 for _ in ET.parse(a.junit).getroot().iter("testcase"))
-    max_tests = a.max_tests if a.max_tests is not None else max(20, int(n * 1.0 + 0.999))
+    # Today's count plus one change's worth: a zero-headroom budget blocks even a good test for a real
+    # gap until the suite has been reduced (seen in evaluation). The ratchet brings it down afterwards.
+    max_tests = a.max_tests if a.max_tests is not None else max(20, n + a.max_new)
     src = a.src.rstrip("/")
     values = {
         "project": a.project or os.path.basename(root),

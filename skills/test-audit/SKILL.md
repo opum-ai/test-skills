@@ -1,6 +1,6 @@
 ---
 name: test-audit
-description: Measure an existing test suite and its CI against a lean-but-adequate standard - per-test mutation kill matrix, certified minimal subset, redundancy (duplicate, subsumed, zero-signal tests), clone clusters that should be one parametrized test or property, test smells (no-assert, tautology, over-mocking, implementation coupling, sleeps, snapshots), flakiness and CI tiering - and report how far the suite can shrink without losing fault detection. Use this skill whenever someone says the tests are bloated, too many, slow, flaky, brittle, or "collapsing", asks how many tests they really need, wants a test-suite health check, asks whether their coverage or mutation score is adequate, or wants to bring an existing project into compliance with a test constitution - even if they only say "our CI takes forever" or "the agent keeps adding tests". It measures and recommends; the test-reduce skill applies the cuts.
+description: "Use this skill to diagnose the health of a whole existing test suite and its CI, and to report how lean it could be without losing fault detection. It builds a per-test mutation kill matrix, certifies a minimal subset, and flags duplicate, subsumed and zero-signal tests, clone clusters, test smells, flakiness and CI tiering problems. Use it when the concern is the suite as a whole: it's bloated, slow, brittle, untrusted or agent-grown; the user wants to know how many tests they really need; they doubt their coverage or mutation score; or they want it checked against a test constitution. Vague complaints like \"CI takes forever\" count. Do not use it for narrow questions about specific named tests, such as whether one test is flaky or whether a given property test subsumes certain example tests. Also skip it for writing new tests, explaining concepts, or carrying out deletions and consolidation, which belong to test-reduce. This skill only measures and recommends."
 ---
 
 # test-audit
@@ -27,6 +27,7 @@ It does not delete anything. That is `test-reduce`, and it starts from this repo
 | Command | What it gives you |
 |---|---|
 | `collect-pytest --src PKG --tests tests -o .tmx/matrix.json` | Per-test coverage, then a **kill matrix**: every mutant of PKG, run against only the tests that cover its line, in throwaway copies. Run it with the project's interpreter (pytest + coverage). |
+| `faults faults.json --cmd "<test cmd writing {junit}>" [--matrix m.json]` | Domain faults for **any language**: text patches applied in throwaway copies, run with any JUnit-writing command, merged into the matrix with exact attribution (a fault that breaks compilation is an `error`, never a kill). |
 | `import-stryker mutation.json -o .tmx/matrix.json` | The same matrix for JS/TS/C#/Scala from Stryker (`coverageAnalysis: "perTest"`, json reporter). |
 | `score .tmx/matrix.json --survivors` | Mutation score, zero-kill tests, surviving mutants. |
 | `analyze .tmx/matrix.json -o .tmx/plan.json [--csv keep.csv]` | Smallest subset preserving **every** kill (weighted set cover), reasons per removed test, trade-off curve, certificate; `--csv` writes the per-test keep/remove table for the user. |
@@ -57,7 +58,9 @@ static smells/clones plus JUnit counts, which gives a partial audit, labelled as
      git history.
    - **Scope:** restrict `--src` to one package at a time when the suite is huge. Say so
      in the report.
-   - **Domain faults for critical code:** `--extra-mutants faults.json` takes a list of
+   - **Domain faults for critical code:** `--extra-mutants faults.json` (pytest collector), or
+     `tmx faults faults.json --cmd ...` for any language (for example Vitest with
+     `--reporter=junit --outputFile={junit}`, merged into an imported Stryker matrix). Each takes a list of
      `{"file", "find", "replace", "desc"}` entries. The operators cover comparisons,
      arithmetic (including `//` vs `/`), constants up and down, numeric strings,
      `raise` deletion, `min`/`max`/`sum`/`any`/`all` swaps and rounding modes. They do not
@@ -75,28 +78,34 @@ static smells/clones plus JUnit counts, which gives a partial audit, labelled as
      retained test), and `jointly-covered`.
    - `curve`: how few tests reach 80, 90 and 95% of the kills.
    - `optimal` / `lower_bound`: whether the subset is provably minimal for this matrix.
-5. **Weakness pass.** Run `score --survivors`. Surviving mutants in critical code are
+5. **Brittleness, measured.** "Every refactor breaks dozens of tests" is a claim you can test.
+   In a scratch copy, apply a few behaviour-preserving refactors: rename a private attribute,
+   inline a helper, switch an internal call to its public equivalent. Count the tests that fail.
+   Every failure is a change detector (Article VI). Report the count and name the tests. In
+   the evaluation, unaided agents did this and it made their reports more convincing than
+   static smell counts alone.
+6. **Weakness pass.** Run `score --survivors`. Surviving mutants in critical code are
    *missing* tests. Triage the top ones:
    - an **equivalent mutant** (no behavior change, e.g. `x < lo` → `x <= lo` inside a
      clamp that returns `lo`);
    - a **real gap**: name the missing assertion.
    A lean suite that misses real faults is not the goal.
-6. **CI review.** Read the workflow files against `references/ci-review.md`:
+7. **CI review.** Read the workflow files against `references/ci-review.md`:
    - tiers (PR vs nightly), selection, sharding, caching;
    - retries-to-green, which hide flakes (Article XI);
    - timeouts, and whether the gate is present.
-7. **Rigor.** Resolve each path's level from the policy (default R3 when there is none).
+8. **Rigor.** Resolve each path's level from the policy (default R3 when there is none).
    Judge the evidence against that level's obligations
    (`../test-constitution/references/rigor-profiles.md`):
    - R4 paths need every survivor triaged;
    - R5 paths need history mutants killed, traceability and an assurance plan.
    Report **per path and per level**. A critical path audited against R3 thresholds is a
    finding.
-8. **Constitution compliance.** If the project has a constitution, check each article and
+9. **Constitution compliance.** If the project has a constitution, check each article and
    mark it pass / fail / not measurable, with evidence. If it has none, report against the
    default articles in `../test-constitution/assets/TEST-CONSTITUTION.md` and recommend
    adopting them.
-9. **Write `.tmx/findings.json` and publish the report** (`references/report.md`). Offer
+10. **Write `.tmx/findings.json` and publish the report** (`references/report.md`). Offer
    the next steps:
    - `test-reduce` to apply the plan;
    - `test-constitution` if there is no constitution;

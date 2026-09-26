@@ -161,7 +161,9 @@ def grade_constitution(ws, py, tmp):
     out["new_files"] = sorted(set(files) - {os.path.relpath(os.path.join(d, f), fix)
                                            for d, dirs, fs in os.walk(fix) for f in fs if ".git" not in d.split(os.sep)})
     wf = "".join(open(os.path.join(ws, f)).read() for f in files if f.startswith(".github/workflows/"))
-    out["ci_has_retry_loop"] = bool(re.search(r"for attempt in|--reruns|retry", wf))
+    # Executable retry mechanisms only: a comment or step name saying "no retries" is not a loop.
+    code = "\n".join(ln.split("#", 1)[0] for ln in wf.splitlines() if not re.match(r"\s*-?\s*name:", ln))
+    out["ci_has_retry_loop"] = bool(re.search(r"for attempt in|--reruns|rerunfailures|uses:\s*\S*retry", code))
     agent_md = "".join(open(os.path.join(ws, f)).read() for f in ("CLAUDE.md", "AGENTS.md") if os.path.exists(os.path.join(ws, f)))
     out["agent_instructions_chars"] = len(agent_md)
     out["pr_suite_still_passes"] = pytest_count(py, ws, respect_config=True)["exit"] == 0
@@ -180,6 +182,10 @@ def main():
             res = grade_shop(a.case, ws, a.python, tmp)
         elif a.case == "loyalty-greenfield":
             res = grade_loyalty(ws, a.python, tmp)
+        elif a.case == "ts-audit":
+            fix = pristine("ts-bloated-cart", os.path.join(tmp, "pristine"))
+            res = {"src_unchanged": tree_hash(ws, "src") == tree_hash(fix, "src"),
+                   "tests_unchanged": tree_hash(ws, "test") == tree_hash(fix, "test")}
         elif a.case == "constitution-setup":
             res = grade_constitution(ws, a.python, tmp)
         else:

@@ -92,6 +92,20 @@ claims. There are two suites:
        nvm);
      - prepends them to `PATH` through the run home's `.zshenv`.
      The workspace itself is untouched.
+   - **Stryker in the sandbox.** Stryker's parent process opens a TCP log server for its workers,
+     and the sandbox denies every `listen()`, TCP and Unix alike. The ts-audit scaffold runs
+     `evals/sandbox_patch_stryker.cjs` on the run's own copy of `node_modules`. The patch makes
+     the log server a no-op and fails loudly if Stryker's code changes. Mutation results are
+     unchanged: 77 mutants, 75 killed, 57 with several killers, inside and outside the sandbox.
+   - **Grading in two layers.** plugin eval's LLM graders read only what the agent produced, so:
+     - assertions that cite grader-held evidence become checks on the report's claims;
+     - "did not modify" and the hidden acceptance tests are left to the objective layer (the
+       `JUDGE` map in `make_cases.py`).
+     The runner passes `--keep-temp`, then `evals/grade_plugin_eval.py` runs `grade.py` on every
+     kept workspace. That layer covers the hidden tests, re-collected kill matrices and
+     tree-hash "unchanged" checks. It writes `task-objective.{json,md}` beside the eval result.
+   - **Model.** The agent model is pinned with `--model` (`EVAL_MODEL`, default
+     `claude-opus-5-5`). Without it, a run uses the child session's default model.
    - **Arms.** Trigger cases run without a baseline arm. Task cases run with and without the
      plugin. Reports stay local unless you pass `--publish-report`.
    A run that hits `max_turns` after loading the skill counts as a genuine pass. So does a

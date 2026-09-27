@@ -102,6 +102,17 @@ $T verify .tmx/plan2.json .tmx/after.json --rerun   # empirical: the retained su
 $T probation add --plan .tmx/plan2.json          # writes .test-probation.json (refuses uncovered/empty plans)
 $T probation install --conftest conftest.py      # pytest hook; marks listed tests `probation`
 ```
+**Demote everything the certificate removes by default, boundary and money cases included.**
+Demotion is not deletion. A probation test still runs every night, and it is deleted only
+after a clean window. If it ever fails, it comes straight back. So "this is an important
+boundary" is a reason to keep it on probation, not in the PR tier. The PR tier is guarded by
+what the certificate keeps, and that already kills every mutant the demoted case kills.
+
+To keep a certified-redundant case in the PR tier anyway, pass `--keep <id>` and name the
+reason in the report. A good reason is a behavior the mutant set cannot express, such as a
+spec boundary with no mutant that separates it, or a user-facing contract someone asked to
+keep visible. A good reason is not "it's money code": the rigor level already covers that
+through the probation window and the line certificate.
 - **PR tier:** `pytest -m "not probation"`. Speed improves immediately.
 - **Nightly:** runs everything, then `$T probation record --junit nightly.xml`.
 - **A failing probation test is promoted back** by removing it from the list. Its failure

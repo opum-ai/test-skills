@@ -18,8 +18,10 @@
 - 2026-09-26T16:31:14-05:00 1353b03828509ac28ac8782ed801d8821d70aad3 TS-16: project .venv via uv for evals; runner uses it by default (#6)
 - 2026-09-26T17:17:27-05:00 a09fbe1d1fe0d9b4352ee90f74943b899d6c70af TS-17: task evals get Bash/Write/Edit and a sandbox-readable toolchain (#7)
 - 2026-09-26T17:52:29-05:00 932049da8c0a565fe1895a3f3cddec8232c3569f TS-18: plugin eval fidelity - Stryker in sandbox, judgeable assertions, objective post-pass, pinned model (#8)
+- 2026-09-26T21:35:24-05:00 58fd5b87bd0b599cb96b9064ff319a010fbc8778 TS-20: constitution amendment 2 - max_tests 60 -> 70, refresh stale baseline (#10)
 
 ## docs/stories
 
 - 2026-09-26T10:22:01-05:00 9480522527b2961eeaefd043ca870f128390f026 Exact-id protection from base ref (closes name-glob loophole); adopt --codeowners and protected.txt; evaluation results in story and README
 - 2026-09-26T13:14:43-05:00 fab44474ec02c053072d76275cecc8831a763110 TS-14: keep benchmark and run_loop summaries in evals/benchmarks/iteration-1
+- 2026-09-26T21:36:05-05:00 9ceb8941dd16dba518e59cfb2689e115c49efe7e TS-19: plugin eval run 3 - grader keeps import mode; test-reduce must not stop after consolidation (#9)

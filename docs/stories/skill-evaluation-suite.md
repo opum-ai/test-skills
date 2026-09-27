@@ -204,3 +204,15 @@ workspace objectively.
   - an objective post-pass.
   The judge reads only the final report, so its scores measure reporting as much as outcomes.
   Read them next to the objective column.
+
+**shop-reduce re-run after the TS-19 fix** (plugin eval, Opus, 3 runs per arm, $7.00).
+- **With the plugin:** PR tier **73/90/86** (was 100–104), **0 lost kills** in every run. Judge
+  score 0.71.
+- **Without the plugin:** PR tier 87/88/75, and two of the three runs lost 4 and 3 kills. Judge
+  score 0.62.
+
+The runs now run stage 2, but they still demote too little. One run was told that 62 of its
+90 cases suffice, and it kept the other 28 "on purpose for money code". It treated demotion as
+a loss, although probation runs those cases nightly. TS-21 changes `test-reduce` so that
+certified-redundant cases, boundaries included, are demoted by default. Keeping one in the PR
+tier now needs a reason the mutant set cannot express, not just "it's money code".

@@ -42,10 +42,24 @@ def tree_hash(root, sub):
     return h.hexdigest()
 
 
+def import_mode(cwd):
+    """The project's --import-mode, if its config sets one. Clearing addopts must not drop it: a suite
+    that keeps same-named test modules in two directories (e.g. tests/probation/) collects only under
+    importlib mode."""
+    for f in ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini"):
+        p = os.path.join(cwd, f)
+        if os.path.exists(p):
+            m = re.search(r"--import-mode[= ](\w+)", open(p).read())
+            if m:
+                return [f"--import-mode={m.group(1)}"]
+    return []
+
+
 def pytest_count(py, cwd, marker=None, paths=("tests",), respect_config=False):
-    # By default addopts is cleared so counts are comparable; governance cases respect the project's
-    # own config (its quarantine/probation deselection is part of what is being graded).
-    args = [py, "-m", "pytest", "-q", *([] if respect_config else ["-o", "addopts="]), "-p", "no:cacheprovider", *paths]
+    # By default addopts is cleared so counts are comparable (keeping only the import mode); governance
+    # cases respect the project's own config (its quarantine/probation deselection is being graded).
+    args = [py, "-m", "pytest", "-q", *([] if respect_config else ["-o", "addopts=", *import_mode(cwd)]),
+            "-p", "no:cacheprovider", *paths]
     if marker:
         args += ["-m", marker]
     r = run(args, cwd)

@@ -60,6 +60,7 @@ def main():
     ap.add_argument("--python", default=os.path.join(HERE, "..", ".venv", "bin", "python"))
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
+    a.python = os.path.abspath(a.python)   # grade.py runs from inside each workspace
     res = json.load(open(a.task_json))
     names = sorted((e["name"] for e in json.load(open(os.path.join(HERE, "evals.json")))["evals"]), key=len, reverse=True)
     jobs = []

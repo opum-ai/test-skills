@@ -84,7 +84,16 @@ $T compare .tmx/matrix.json .tmx/after.json      # exit 3 = something is no long
 If anything is lost, the consolidation dropped a behavior. Restore the row or assertion
 that killed it. Never "fix" this by weakening the mutant set.
 
+The tests a table replaces are gone in the same commit: `compare` with 0 lost is their
+certificate. Parking the originals in probation adds caution, which is fine if the user wants
+it. It is not stage 2, though, and it cuts nothing from what the PR tier runs.
+
 ### 2. Demote: out of the PR tier, into probation
+
+**This is where the radical cut happens, so do not stop after consolidation.** Consolidation
+removes copy-paste. It still leaves rows and tests whose kills other tests also make. On a
+typical agent-bloated suite, consolidation roughly halves the count, and this stage halves it
+again.
 
 Re-run `analyze` on the consolidated matrix, then `verify`. Demote what it removes:
 ```bash
@@ -124,7 +133,8 @@ functions. A parametrized function with some cases due is reported under
     amendment with its reason.
 - Update `.tmx/findings.json` (`kind: "reduction"`) and publish the report
   (`references/report.md`):
-  - tests and seconds, before and after;
+  - tests and seconds, before and after, with the PR-tier count after each stage
+    (audit → consolidated → demoted), so a reader can see where the cut came from;
   - what was consolidated, into what;
   - demoted and deleted counts, with reasons;
   - the compare log;

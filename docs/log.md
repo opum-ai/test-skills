@@ -19,6 +19,7 @@
 - 2026-09-26T17:17:27-05:00 a09fbe1d1fe0d9b4352ee90f74943b899d6c70af TS-17: task evals get Bash/Write/Edit and a sandbox-readable toolchain (#7)
 - 2026-09-26T17:52:29-05:00 932049da8c0a565fe1895a3f3cddec8232c3569f TS-18: plugin eval fidelity - Stryker in sandbox, judgeable assertions, objective post-pass, pinned model (#8)
 - 2026-09-26T21:35:24-05:00 58fd5b87bd0b599cb96b9064ff319a010fbc8778 TS-20: constitution amendment 2 - max_tests 60 -> 70, refresh stale baseline (#10)
+- 2026-09-27T09:57:27-05:00 9173051a28b95c0730cdf79d48d3a31bb99cac85 TS-21: test-reduce demotes certified-redundant cases by default (#11)
 
 ## docs/stories
 

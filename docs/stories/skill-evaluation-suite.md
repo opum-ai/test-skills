@@ -165,3 +165,42 @@ query, in a stub project root.
 | coverage-proof | 7/8 → 7/8 (loop); a hand-edited scope sentence scored 20/20 on the full set vs 18/20 | yes (the hand edit) |
 | test-reduce | 7/8 → 7/8 (19/20 on the full set; a tie) | no, original kept |
 | test-plan, test-constitution, test-ci | 8/8 → 8/8 | no change needed |
+
+### Results: `claude plugin eval` (2026-09-26, claude-opus-5-5, 3 runs per arm)
+
+These runs use the plugin as users install it: `evals/run_plugin_eval.sh`, with and without the
+plugin, and plugin eval's Haiku judge on each final report. `grade.py` then re-checks every kept
+workspace objectively.
+
+**Trigger suite:** 48/48 (8/8 per skill), $13.30.
+
+**Task suite:** judge mean 0.67 overall; the with-plugin arm leads by +0.10. The skill loaded in
+15/15 with-plugin runs. Cost was $32.32 over 30 minutes.
+
+| Case | Judge, with | Judge, without | Objective (grade.py on the kept workspaces) |
+|---|---|---|---|
+| shop-reduce | 0.62 ± 0.13 | 0.57 ± 0.12 | PR tier **100/104/103, 0 lost kills** vs 46/62/51 with **3 lost kills in every baseline** (inventory boundaries, the NY and 6.25% tax rates). 3/3 history bugs in all six runs. |
+| loyalty-greenfield | **0.67 ± 0.06** | 0.38 ± 0.10 | 43/43 hidden tests in all six runs. **40–47** vs 51–54 cases added. Mutation **0.95–0.98** vs 0.83–0.90. |
+| constitution-setup | **0.88 ± 0.10** | 0.67 ± 0.06 | All six runs left source unchanged, removed the retry loop, and kept the suite green. |
+| shop-audit | 0.67 ± 0.18 | 0.67 ± 0.12 | Source and tests unchanged in all runs. |
+| ts-audit | 0.54 ± 0.06 | 0.58 ± 0.06 | Source and tests unchanged. Stryker ran inside the sandbox (TS-18). |
+
+**Findings.**
+- **With-plugin reductions were safe but stopped early.** All three consolidated into tables,
+  parked the originals in probation, and did not run the post-consolidation `analyze` →
+  demote stage, so the PR tier stayed at 100–104. `test-reduce` now:
+  - says that stage is where the radical cut happens;
+  - says the originals a table replaces are not stage 2;
+  - asks the report for the PR-tier count after each stage.
+  The baselines cut harder and lost real money kills every time.
+- **Grader bug.** `grade.py` cleared `addopts` and dropped a project's `--import-mode=importlib`.
+  A valid suite with same-named modules in `tests/probation/` then read as 6 collection errors.
+  It is fixed, with a regression test (`tests/test_grade.py`).
+- **Harness limits** (TS-17, TS-18). plugin eval runs agents in an unconfigurable OS sandbox, so
+  the harness adds the following:
+  - an operator grant for Bash, Write and Edit;
+  - a relocatable toolchain staged into each run's home;
+  - a Stryker log-server patch;
+  - an objective post-pass.
+  The judge reads only the final report, so its scores measure reporting as much as outcomes.
+  Read them next to the objective column.

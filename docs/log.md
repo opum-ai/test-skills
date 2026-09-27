@@ -17,6 +17,7 @@
 - 2026-09-26T15:32:59-05:00 57a3b7b1494d8b1e2ced82fe858013b84dbfea5c TS-15: plugin-eval runner with monitored logs; regenerate stale cases (#5)
 - 2026-09-26T16:31:14-05:00 1353b03828509ac28ac8782ed801d8821d70aad3 TS-16: project .venv via uv for evals; runner uses it by default (#6)
 - 2026-09-26T17:17:27-05:00 a09fbe1d1fe0d9b4352ee90f74943b899d6c70af TS-17: task evals get Bash/Write/Edit and a sandbox-readable toolchain (#7)
+- 2026-09-26T17:52:29-05:00 932049da8c0a565fe1895a3f3cddec8232c3569f TS-18: plugin eval fidelity - Stryker in sandbox, judgeable assertions, objective post-pass, pinned model (#8)
 
 ## docs/stories
 

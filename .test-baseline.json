@@ -1,9 +1,10 @@
 {
  "updated": "2026-09-26",
- "tests": 52,
+ "tests": 60,
  "hidden_tests": 0,
- "seconds": 1.311,
+ "seconds": 3.069,
  "test_ids": [
+  "tests.test_cover::test_a_starved_search_still_returns_a_valid_cover_and_a_sound_bound",
   "tests.test_cover::test_branch_and_bound_solves_instances_the_reductions_cannot",
   "tests.test_cover::test_budget_exhaustion_still_yields_a_valid_cover_and_a_sound_bound",
   "tests.test_cover::test_checker_rejects_a_certificate_missing_any_witness",
@@ -14,16 +15,19 @@
   "tests.test_covering::test_check_reports_missing_pairs_and_the_redundant_test",
   "tests.test_covering::test_generated_array_covers_every_t_way_combination",
   "tests.test_covering::test_tuples_no_valid_row_can_contain_are_not_required",
+  "tests.test_faults::test_faults_are_attributed_only_to_tests_that_really_catch_them",
   "tests.test_gate::test_a_change_cannot_loosen_its_own_gate",
   "tests.test_gate::test_a_trailer_raises_rigor_but_cannot_lower_it",
   "tests.test_gate::test_adding_only_a_skip_decorator_to_an_existing_test_is_caught",
-  "tests.test_gate::test_mini_toml_matches_tomllib_on_the_shipped_template",
+  "tests.test_gate::test_edit_hook_judges_only_the_tests_an_edit_touched",
+  "tests.test_gate::test_mini_toml_parses_the_shipped_template_on_every_supported_python",
   "tests.test_gate::test_rigor_levels[R1-env0-expected_rules0-True]",
   "tests.test_gate::test_rigor_levels[R3-env1-expected_rules1-False]",
   "tests.test_gate::test_rigor_levels[R5-env2-expected_rules2-False]",
   "tests.test_gate::test_rigor_levels[R5-env3-expected_rules3-False]",
   "tests.test_gate::test_rigor_levels[R5-env4-expected_rules4-False]",
   "tests.test_gate::test_unknown_base_ref_is_a_usage_error",
+  "tests.test_gate_matrix::test_a_change_cannot_triage_its_own_survivors_without_approval",
   "tests.test_gate_matrix::test_a_zero_mock_limit_is_enforced_not_ignored",
   "tests.test_gate_matrix::test_budget_growth_needs_a_trailer_and_at_r4_an_approval",
   "tests.test_gate_matrix::test_demotion_must_be_certified_and_demoted_tests_still_count",
@@ -55,7 +59,11 @@
   "tests.test_smells::test_smells[sleep-3]",
   "tests.test_smells::test_smells[swallowed-exception-5]",
   "tests.test_smells::test_smells[tautology-1]",
-  "tests.test_smells::test_smells[weak-assertion-2]"
+  "tests.test_smells::test_smells[weak-assertion-2]",
+  "tests.test_stryker_real::test_a_real_full_report_certifies_a_reduction_that_keeps_the_boundary_tests",
+  "tests.test_stryker_real::test_js_smells_on_the_typescript_fixture",
+  "tests.test_stryker_real::test_reports_that_would_mislead_a_reduction_are_refused[bail.json---allow-bail-disableBail]",
+  "tests.test_stryker_real::test_reports_that_would_mislead_a_reduction_are_refused[vacuous.json---allow-low-score-never reaching the code]"
  ],
  "id_source": "junit"
 }

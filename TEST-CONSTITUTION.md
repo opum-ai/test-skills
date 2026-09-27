@@ -3,7 +3,7 @@
 <!-- Adopted from the test-skills template v0.1. Edit freely; record changes in the Amendment log.
      Numbers live in test-policy.toml; `tmx gate` enforces every article marked [gate]. -->
 
-**Project:** test-skills · **Adopted:** 2026-09-26 · **Policy:** `test-policy.toml` · **Version:** 1
+**Project:** test-skills · **Adopted:** 2026-09-26 · **Policy:** `test-policy.toml` · **Version:** 2
 **Rigor:** project default **R3**, critical tier **R4** (profiles R1 Minimal · R2 Lightweight ·
 R3 Standard · R4 Strict · R5 High-Assurance; a change is held to the highest level of anything it touches)
 
@@ -126,3 +126,4 @@ audited against this constitution at least once a quarter.
 | Date | Version | Change | Reason |
 |---|---|---|---|
 | 2026-09-26 | 1 | Adopted | Initial adoption |
+| 2026-09-26 | 2 | `max_tests` 60 → 70; baseline refreshed 52 → 60 | The evaluation work (TS-13, TS-14) found real defects: Stryker bail/vacuity, fault attribution, and gate state files. It added 8 regression tests for them, one per defect (Article XII). That used all of the adoption headroom, and the baseline was never refreshed, so the next single regression test (the grader's import mode, TS-19) read as +9 over a full budget. 70 is today's 60 plus one change's worth (`max_new_tests_per_pr` = 8, rounded). A quarterly audit should ratchet it back down. |

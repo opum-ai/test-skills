@@ -21,15 +21,17 @@ watched tree, and the snapshot walks the whole tree including ``.git``, ``__pyca
 ``.tmx``. The ONLY path excluded from the file channel is the name the tempfile module generates
 directly under the sandbox temp dir (``tmp``, eight random chars from ``[a-z0-9_]``, then any
 suffix): that name is noise, while a deterministic write to the temp dir stays observable. Two
-things match that shape but cannot be told apart, and neither is chased: a custom prefix
-(``NamedTemporaryFile(prefix="myapp")``), and a deterministic name that happens to fit it (e.g.
-``tmp12345678``). Both are CONSERVATIVE - an equivalent mutant reads observable, so it stays a
-survivor and the score is understated, never inflated. NOT observable, and accepted as a KNOWN
-FALSE EQUIVALENT per DEC-189 (5): a write to an absolute path outside the tree, and a file created
-and then deleted within a single run (the snapshot compares the tree before and after, so a
-transient file leaves no trace). The run directory is normalised out of stdout and stderr,
-PYTHONHASHSEED is pinned to 0, and the environment that shapes the result is recorded with the
-verdict.
+things cannot be told apart from a generated name, and neither is chased; they fail in OPPOSITE
+directions. A custom prefix (``NamedTemporaryFile(prefix="myapp")``) is KEPT, so an equivalent
+mutant reads observable - conservative, understating the score. A DETERMINISTIC name that fits the
+shape (e.g. ``tmp12345678``) is DROPPED, so a mutant that differs from a same-named deterministic
+write reads equivalent - the inflation direction DEC-189 forbids, accepted only because keeping it
+would break the common generated case and the classing is limited to speed-only heuristics. NOT
+observable, and accepted as a KNOWN FALSE EQUIVALENT per DEC-189 (5): a write to an absolute path
+outside the tree, and a file created and then deleted within a single run (the snapshot compares the
+tree before and after, so a transient file leaves no trace). The run directory is normalised out of
+stdout and stderr, PYTHONHASHSEED is pinned to 0, and the environment that shapes the result is
+recorded with the verdict.
 
 Generated inputs are a later slice: this module compares a caller-provided corpus and
 records the seed, but does not itself generate inputs from it.
@@ -56,10 +58,15 @@ OBSERVED = "workspace, home, tmp"
 # uppercase. Only names matching this shape at the top of the sandbox temp dir are dropped from the
 # file channel; a DETERMINISTIC write there stays observable, so the verdict's "observed: ... tmp"
 # is true (DEC-189 (5)).
-# Known limits, both CONSERVATIVE (an equivalent mutant reads observable, so it stays a survivor and
-# the score is understated, never inflated): a CUSTOM prefix (NamedTemporaryFile(prefix="myapp"))
-# cannot be told from a deterministic name, and a deterministic name that happens to match the shape
-# (e.g. "tmp12345678") is inherently indistinguishable. Neither is chased.
+# Two things cannot be told apart from a generated name, and neither is chased. They fail in
+# OPPOSITE directions, so the direction is stated per case:
+#   * a CUSTOM prefix (NamedTemporaryFile(prefix="myapp")) is KEPT, so an equivalent mutant reads
+#     observable - CONSERVATIVE: it stays a survivor and the score is understated, never inflated;
+#   * a DETERMINISTIC name that fits the shape (e.g. "tmp12345678") is DROPPED, so a mutant that
+#     differs from a same-named deterministic write reads EQUIVALENT. That is the inflation
+#     direction DEC-189 forbids: a real difference is hidden. It is accepted because keeping such a
+#     name would break the common generated case, and the classing in test-policy.toml is limited
+#     to named speed-only heuristics, where a deterministic tmp write of this shape is implausible.
 TMPFILE_RE = re.compile(r"^tmp[a-z0-9_]{8}")
 DEFAULT_TIMEOUT = 60.0
 

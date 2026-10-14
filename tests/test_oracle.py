@@ -142,6 +142,14 @@ def test_tempfiles_are_ignored_and_a_deterministic_tmp_write_is_observable(tmp_p
     for d in (o2, m2):
         open(os.path.join(d, "mod.py"), "w").write("X = 1\n")
     assert equiv(o2, m2)["equivalent"] is False
+    # (3) A deterministic UPPERCASE name of the same shape must stay observable: the generated-name
+    # alphabet is [a-z0-9_], so re-adding A-Z would make this go red.
+    up = "open(os.path.join(tempfile.gettempdir(), 'tmpA1B2C3D4'), 'w').write(%r)\n"
+    o3 = tree(tmp_path, "orig3", prog + up % "a")
+    m3 = tree(tmp_path, "mut3", prog + up % "b")
+    for d in (o3, m3):
+        open(os.path.join(d, "mod.py"), "w").write("X = 1\n")
+    assert equiv(o3, m3)["equivalent"] is False
 
 
 def test_a_file_changed_to_different_content_is_not_equivalent(tmp_path):

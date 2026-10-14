@@ -15,14 +15,17 @@ Nothing here is hand-edited. The caller records the corpus and its seed; the ver
 re-derived from the two runs, and the evidence (each corpus entry's two observable
 results, and the first mismatch) is returned with it.
 
-Sandboxing and what it can and cannot see. Each run has HOME and TMPDIR pointed inside
-``<tree>/.oracle-sandbox``, so a write to the home directory or the temp directory lands
-in the watched tree; the snapshot walks the whole tree (nothing skipped), so writes into
-``.git``, ``__pycache__`` or ``.tmx`` are visible too. NOT observable here: a write to an
-absolute path outside the tree, and a file created and then deleted within a single run
-(the snapshot compares the tree before and after the run, so a transient file leaves no
-trace). The run directory is normalised out of stdout and stderr, PYTHONHASHSEED is
-pinned to 0, and the environment that shapes the result is recorded with the verdict.
+Sandboxing and what it observes. Each run has HOME and TMPDIR pointed inside
+``<tree>/.oracle-sandbox``, so a write to the home directory or the temp directory lands in the
+watched tree, and the snapshot walks the whole tree including ``.git``, ``__pycache__`` and
+``.tmx``. The ONLY path excluded from the file channel is the random name the tempfile module
+generates directly under the sandbox temp dir (``tmp`` plus eight random chars): that name is
+noise, while a deterministic write to the temp dir stays observable. NOT observable, and accepted
+as a KNOWN FALSE EQUIVALENT per DEC-189 (5): a write to an absolute path outside the tree, and a
+file created and then deleted within a single run (the snapshot compares the tree before and
+after, so a transient file leaves no trace). The run directory is normalised out of stdout and
+stderr, PYTHONHASHSEED is pinned to 0, and the environment that shapes the result is recorded
+with the verdict.
 
 Generated inputs are a later slice: this module compares a caller-provided corpus and
 records the seed, but does not itself generate inputs from it.
@@ -33,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import stat
 import subprocess
 from typing import Dict, List, Optional, Sequence
@@ -42,6 +46,10 @@ SANDBOX = ".oracle-sandbox"
 # mutant whose only difference is a write to some other absolute path is a KNOWN FALSE EQUIVALENT,
 # accepted as proportionate; classing is limited to the named speed-only classes.
 OBSERVED = "workspace, home, tmp"
+# The name pattern the tempfile module generates: prefix "tmp" plus eight random chars. Only names
+# matching it inside the sandbox temp dir are dropped from the file channel; a DETERMINISTIC write
+# there stays observable, so the verdict's "observed: ... tmp" is true (DEC-189 (5)).
+TMPFILE_RE = re.compile(r"^tmp[0-9a-zA-Z_]{8}$")
 DEFAULT_TIMEOUT = 60.0
 
 
@@ -108,20 +116,27 @@ def _recorded_env(e: dict, root: str) -> dict:
     return {k: _normalise(str(e.get(k, "")), root) for k in keys}
 
 
+def _is_generated_tempfile(rel: str) -> bool:
+    """True only for a path the tempfile module generated directly under the sandbox temp dir,
+    ``<sandbox>/tmp/<tmp-name>[/...]``. Every other temp write stays in the file channel."""
+    parts = rel.split("/")
+    return len(parts) >= 3 and parts[0] == SANDBOX and parts[1] == "tmp" and bool(TMPFILE_RE.match(parts[2]))
+
+
 def observable(python: str, root: str, argv: Sequence[str], env: Optional[dict] = None,
                timeout: float = DEFAULT_TIMEOUT) -> dict:
     """The observable result of one corpus entry: exit code, emitted records (with the run
     directory normalised out) and files written anywhere in the tree. Wall time and iteration
     count are deliberately not part of it; the environment actually passed is recorded.
 
-    The sandbox temp directory is NOT part of the file channel: a program that leaves a
-    random-named tempfile there would otherwise read as observable. Files written anywhere else
-    under the tree are."""
+    Only the random names the tempfile module generates inside the sandbox temp dir are dropped: a
+    random-named tempfile is noise, but a DETERMINISTIC write to the temp dir is observable, so the
+    verdict's "observed: workspace, home, tmp" stays true."""
     before = snapshot(root)
     r = _run(python, root, argv, env, timeout)
     after = snapshot(root)
     changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
-    written = [k for k in changed if not k.startswith(SANDBOX + "/tmp/")]
+    written = [k for k in changed if not _is_generated_tempfile(k)]
     # The state of each changed path, so two trees that change the SAME path to DIFFERENT content
     # (or different modes) are not read as equivalent.
     written_state = {k: (after[k] if k in after else "removed") for k in written}

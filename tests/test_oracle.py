@@ -37,7 +37,7 @@ def test_identical_observable_results_are_equivalent(tmp_path):
     # The program prints its absolute working directory, which differs per tree; normalisation
     # must remove it, and the recorded environment must carry no absolute path.
     res = verdict(tmp_path, "import os\nprint(os.getcwd())\n", "import os\nprint(os.getcwd())\n")
-    assert res["equivalent"] is True and res["seed"] == 7
+    assert res["equivalent"] is True and res["seed"] == 7 and res["observed"] == "workspace, home, tmp"
     assert all(e["same"] for e in res["evidence"])
     mut = res["evidence"][-1]["mutant"]
     assert "<RUN>" in mut["stdout"] and str(tmp_path) not in mut["stdout"]
@@ -107,11 +107,14 @@ def test_a_write_to_the_sandboxed_home_is_observable(tmp_path):
     assert verdict(tmp_path, "pass\n", mutant)["equivalent"] is False
 
 
-def test_a_write_to_an_absolute_path_outside_the_tree_is_not_seen(tmp_path):
-    # Documents the stated limitation: a write outside the watched tree is invisible.
+def test_a_write_outside_the_sandbox_is_a_known_false_equivalent(tmp_path):
+    # DEC-189 (5): the documented BOUNDARY of a process-level oracle, not a claim that a mutant
+    # writing to an absolute path outside the workspace is truly equivalent. The verdict records
+    # the channels observed; this case asserts the limitation so it stays visible.
     out = tmp_path / "outside.txt"
     mutant = f"open({str(out)!r}, 'w').write('x')\n"
-    assert verdict(tmp_path, "pass\n", mutant)["equivalent"] is True
+    res = verdict(tmp_path, "pass\n", mutant)
+    assert res["equivalent"] is True and res["observed"] == "workspace, home, tmp"
 
 
 def test_a_stderr_only_difference_is_not_equivalent(tmp_path):

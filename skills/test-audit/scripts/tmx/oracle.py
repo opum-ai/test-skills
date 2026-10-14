@@ -38,6 +38,10 @@ import subprocess
 from typing import Dict, List, Optional, Sequence
 
 SANDBOX = ".oracle-sandbox"
+# The channels this process-level oracle observes, recorded on every verdict (DEC-189 (5)). A
+# mutant whose only difference is a write to some other absolute path is a KNOWN FALSE EQUIVALENT,
+# accepted as proportionate; classing is limited to the named speed-only classes.
+OBSERVED = "workspace, home, tmp"
 DEFAULT_TIMEOUT = 60.0
 
 
@@ -139,17 +143,18 @@ def equivalent(python: str, original_dir: str, mutant_dir: str, corpus: Sequence
     not covered is unreached; otherwise every corpus entry is run in both trees and the observable
     results compared, stopping at the first mismatch.
 
-    Returns {"equivalent", "unreached", "seed", "evidence": [{"argv", "same", "original",
-    "mutant"}, ...]}. `seed` is the recorded seed of the (later-slice) generated corpus.
+    Returns {"equivalent", "unreached", "observed", "seed", "evidence": [{"argv", "same",
+    "original", "mutant"}, ...]}. "observed" is the channel list DEC-189 (5) requires on every
+    verdict. `seed` is the recorded seed of the (later-slice) generated corpus.
     """
     if required_lines is None:
         return {"equivalent": False, "unreached": True, "missing_lines": [],
-                "reason": "no reach information", "seed": seed, "evidence": []}
+                "reason": "no reach information", "observed": OBSERVED, "seed": seed, "evidence": []}
     cov = {int(x) for x in (covered or ())}
     missing = sorted({int(x) for x in required_lines} - cov)
     if missing:
         return {"equivalent": False, "unreached": True, "missing_lines": missing,
-                "seed": seed, "evidence": []}
+                "observed": OBSERVED, "seed": seed, "evidence": []}
     evidence: List[dict] = []
     for argv in corpus:
         a = observable(python, original_dir, argv, env=env, timeout=timeout)
@@ -157,5 +162,6 @@ def equivalent(python: str, original_dir: str, mutant_dir: str, corpus: Sequence
         same = a == b
         evidence.append({"argv": list(argv), "same": same, "original": a, "mutant": b})
         if not same:
-            return {"equivalent": False, "unreached": False, "seed": seed, "evidence": evidence}
-    return {"equivalent": True, "unreached": False, "seed": seed, "evidence": evidence}
+            return {"equivalent": False, "unreached": False, "observed": OBSERVED,
+                    "seed": seed, "evidence": evidence}
+    return {"equivalent": True, "unreached": False, "observed": OBSERVED, "seed": seed, "evidence": evidence}

@@ -18,14 +18,18 @@ results, and the first mismatch) is returned with it.
 Sandboxing and what it observes. Each run has HOME and TMPDIR pointed inside
 ``<tree>/.oracle-sandbox``, so a write to the home directory or the temp directory lands in the
 watched tree, and the snapshot walks the whole tree including ``.git``, ``__pycache__`` and
-``.tmx``. The ONLY path excluded from the file channel is the random name the tempfile module
-generates directly under the sandbox temp dir (``tmp`` plus eight random chars): that name is
-noise, while a deterministic write to the temp dir stays observable. NOT observable, and accepted
-as a KNOWN FALSE EQUIVALENT per DEC-189 (5): a write to an absolute path outside the tree, and a
-file created and then deleted within a single run (the snapshot compares the tree before and
-after, so a transient file leaves no trace). The run directory is normalised out of stdout and
-stderr, PYTHONHASHSEED is pinned to 0, and the environment that shapes the result is recorded
-with the verdict.
+``.tmx``. The ONLY path excluded from the file channel is the name the tempfile module generates
+directly under the sandbox temp dir (``tmp``, eight random chars from ``[a-z0-9_]``, then any
+suffix): that name is noise, while a deterministic write to the temp dir stays observable. Two
+things match that shape but cannot be told apart, and neither is chased: a custom prefix
+(``NamedTemporaryFile(prefix="myapp")``), and a deterministic name that happens to fit it (e.g.
+``tmp12345678``). Both are CONSERVATIVE - an equivalent mutant reads observable, so it stays a
+survivor and the score is understated, never inflated. NOT observable, and accepted as a KNOWN
+FALSE EQUIVALENT per DEC-189 (5): a write to an absolute path outside the tree, and a file created
+and then deleted within a single run (the snapshot compares the tree before and after, so a
+transient file leaves no trace). The run directory is normalised out of stdout and stderr,
+PYTHONHASHSEED is pinned to 0, and the environment that shapes the result is recorded with the
+verdict.
 
 Generated inputs are a later slice: this module compares a caller-provided corpus and
 records the seed, but does not itself generate inputs from it.
@@ -46,10 +50,17 @@ SANDBOX = ".oracle-sandbox"
 # mutant whose only difference is a write to some other absolute path is a KNOWN FALSE EQUIVALENT,
 # accepted as proportionate; classing is limited to the named speed-only classes.
 OBSERVED = "workspace, home, tmp"
-# The name pattern the tempfile module generates: prefix "tmp" plus eight random chars. Only names
-# matching it inside the sandbox temp dir are dropped from the file channel; a DETERMINISTIC write
-# there stays observable, so the verdict's "observed: ... tmp" is true (DEC-189 (5)).
-TMPFILE_RE = re.compile(r"^tmp[0-9a-zA-Z_]{8}$")
+# The name pattern the tempfile module generates: the prefix "tmp", then eight random chars from
+# its alphabet [a-z0-9_], then any SUFFIX (mkstemp(suffix=...) puts the suffix after the random
+# part, so anchoring with "$" would miss a kept "tmpXXXXXXXX.csv"). tempfile never generates
+# uppercase. Only names matching this shape at the top of the sandbox temp dir are dropped from the
+# file channel; a DETERMINISTIC write there stays observable, so the verdict's "observed: ... tmp"
+# is true (DEC-189 (5)).
+# Known limits, both CONSERVATIVE (an equivalent mutant reads observable, so it stays a survivor and
+# the score is understated, never inflated): a CUSTOM prefix (NamedTemporaryFile(prefix="myapp"))
+# cannot be told from a deterministic name, and a deterministic name that happens to match the shape
+# (e.g. "tmp12345678") is inherently indistinguishable. Neither is chased.
+TMPFILE_RE = re.compile(r"^tmp[a-z0-9_]{8}")
 DEFAULT_TIMEOUT = 60.0
 
 

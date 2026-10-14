@@ -122,9 +122,13 @@ def test_a_stderr_only_difference_is_not_equivalent(tmp_path):
 
 
 def test_tempfiles_are_ignored_and_a_deterministic_tmp_write_is_observable(tmp_path):
-    # (1) A random-named tempfile inside the sandboxed temp dir is noise and must not make an
-    # otherwise-identical mutant observable, even with an imported sibling.
-    prog = "import os, sys, tempfile, mod\ntempfile.mkstemp()\nsys.stderr.write('same')\n"
+    # (1) Random-named tempfiles inside the sandboxed temp dir are noise and must not make an
+    # otherwise-identical mutant observable, even with an imported sibling: both the default form
+    # and a SUFFIXED one (the suffix sits after the random part, so the shape must allow it).
+    prog = ("import os, sys, tempfile, mod\n"
+            "tempfile.mkstemp()\n"
+            "tempfile.mkstemp(suffix='.csv')\n"
+            "sys.stderr.write('same')\n")
     o = tree(tmp_path, "orig", prog)
     m = tree(tmp_path, "mut", prog + "# a different source\n")
     for d in (o, m):

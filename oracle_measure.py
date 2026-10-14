@@ -274,7 +274,7 @@ def coverage_of(module):
     corpus(m.__dict__, module, random.Random(SEED))
     cov.stop()
     _fn, statements, _excl, missing, _mf = cov.analysis2(path)
-    return (len(statements) - len(missing), len(statements))
+    return set(statements) - set(missing), len(statements)
 
 
 def survivor_specs(matrix_path, module):
@@ -307,19 +307,28 @@ def measure(matrix_path, modules=MODULES):
     for module in modules:
         src, specs = survivor_specs(matrix_path, module)
         base = run(src, module)
-        cov_covered, cov_total = coverage_of(module)
-        eq = 0
+        covered, cov_total = coverage_of(module)
+        eq = 0; unreached_eq = 0
         ev = []
         for line, fam, desc, msrc in specs:
             h = run(msrc, module)
             same = h == base and h not in ("", "TIMEOUT") and not h.startswith("ERR:")
-            eq += 1 if same else 0
-            ev.append({"line": line, "op": fam, "desc": desc, "equivalent": same})
+            reached = line in covered
+            # DEC-189: equivalent only if the corpus EXECUTES the mutated line.
+            if same and reached:
+                eq += 1
+            elif same:
+                unreached_eq += 1
+            ev.append({"line": line, "op": fam, "desc": desc, "equivalent": same and reached,
+                       "same_result": same, "reached": reached})
         total_eq += eq
-        pct = round(100.0 * cov_covered / cov_total, 1) if cov_total else None
+        pct = round(100.0 * len(covered) / cov_total, 1) if cov_total else None
         artifact["modules"][module] = {"survivors": len(specs), "equivalent": eq,
-                                       "coverage_pct": pct, "coverage": f"{cov_covered}/{cov_total}", "evidence": ev}
-        print(f"{module}: {len(specs)} survivors, {eq} eq, {len(specs)-eq} obs; corpus covers {cov_covered}/{cov_total} lines ({pct}%)")
+                                       "equivalent_unreached": unreached_eq,
+                                       "observable": len(specs) - eq - unreached_eq,
+                                       "coverage_pct": pct, "coverage": f"{len(covered)}/{cov_total}", "evidence": ev}
+        print(f"{module}: {len(specs)} survivors, {eq} eq(reached), {unreached_eq} eq(unreached), "
+              f"{len(specs)-eq-unreached_eq} obs; corpus covers {len(covered)}/{cov_total} lines ({pct}%)")
     artifact["equivalent_total"] = total_eq
     outp = os.path.join(REPO, ".tmx", "oracle-e.json")
     json.dump(artifact, open(outp, "w"), indent=1)

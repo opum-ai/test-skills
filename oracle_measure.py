@@ -16,6 +16,7 @@ import importlib
 import json
 import os
 import random
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -91,7 +92,8 @@ def corpus(g, module, rnd):
             out.append(json.dumps(TIER(p, [{"name": "c", "paths": ["pkg/*"]}, {"name": "s", "paths": ["*.py"]}]),
                                   sort_keys=True, default=str))
             out.append(json.dumps(sorted(APPR({"assurance": {"approvers": ["a", "b"]}}) or [])))
-        d = tempfile.mkdtemp()
+        d = "/tmp/tmx_oracle_light"
+        shutil.rmtree(d, ignore_errors=True)
         os.makedirs(d + "/tests")
         open(d + "/tests/test_a.py", "w").write("def test_a():\n    assert 1 + 1 == 2\n")
         pol = MT('version = 1\nrigor = "R3"\n[budget]\nmax_tests = 50\n[[adequacy.tier]]\nname = "c"\npaths = ["pkg/*"]\n')
@@ -103,13 +105,16 @@ def corpus(g, module, rnd):
         # Deeper: a real git repo with a base ref, a junit and a matrix, so run(), main() and
         # write_baseline are exercised (not just the parsers).
         import subprocess as _sp
-        repo = tempfile.mkdtemp()
+        repo = "/tmp/tmx_oracle_gate_repo"
+        shutil.rmtree(repo, ignore_errors=True)
         os.makedirs(repo + "/tests")
         open(repo + "/tests/test_a.py", "w").write("def test_a():\n    assert 1 + 1 == 2\n")
 
         def _g(*args):
             _sp.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *args], cwd=repo,
-                    check=True, capture_output=True)
+                    check=True, capture_output=True,
+                    env=dict(os.environ, GIT_AUTHOR_DATE="2020-01-01T00:00:00+00:00",
+                             GIT_COMMITTER_DATE="2020-01-01T00:00:00+00:00"))
         try:
             _g("init", "-q", "-b", "main"); _g("add", "-A"); _g("commit", "-qm", "init")
             _g("checkout", "-qb", "pr")
@@ -151,6 +156,97 @@ def corpus(g, module, rnd):
             except Exception as e:
                 out.append("E:" + type(e).__name__)
         out.append(json.dumps(g["_load_list"](repo + "/nope.json"), default=str))
+        # junit with failures and skips, a slow suite, a changed smell test, quarantine and triage.
+        jf2 = repo + "/r2.xml"
+        open(jf2, "w").write("<testsuite time='120.0'>" + "".join(
+            f"<testcase classname='t' name='k{i}' time='1'>"
+            f"{'<failure/>' if i % 3 == 0 else '<skipped/>' if i % 3 == 1 else ''}</testcase>"
+            for i in range(30)) + "</testsuite>")
+        mf2 = repo + "/m2.json"
+        json.dump({"schema": "test-matrix/1", "tests": {"t::a": {}}, "coverage": {},
+                   "mutants": {f"m{i}": {"file": "tests/test_a.py", "line": i + 1, "op": "const",
+                                         "desc": "1 -> 0", "status": "survived", "killed_by": []}
+                               for i in range(4)}}, open(mf2, "w"))
+        os.makedirs(repo + "/testing", exist_ok=True)
+        json.dump({"tests/test_a.py:1:const:1 -> 0": {"verdict": "equivalent", "reason": "r"}},
+                  open(repo + "/testing/survivors.json", "w"))
+        json.dump([{"test": "t::q", "issue": "", "owner": ""}], open(repo + "/.test-quarantine.json", "w"))
+        json.dump({"tests": 3, "hidden_tests": 0, "test_ids": ["t::a"]}, open(repo + "/bl2.json", "w"))
+        open(repo + "/tests/test_smell.py", "w").write("def test_smell():\n    run()\n")
+        try:
+            _g("add", "-A"); _g("commit", "-qm", "more")
+        except Exception as e:
+            out.append("E:git2:" + type(e).__name__)
+        pol2 = MT(deep % "R4")
+        for kw in (dict(root=repo, base="main", junit=[jf2]),
+                   dict(root=repo, base="main", junit=[jf2], matrix_path=mf2),
+                   dict(root=repo, base="main", matrix_path=mf2),
+                   dict(root=repo, base="no-such-ref", junit=[jf2])):
+            try:
+                out.append(json.dumps(g["run"](pol2, **kw), sort_keys=True, default=str))
+            except SystemExit as e:
+                out.append("SX:" + str(e)[:40])
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        for lvl in ["R4", "R5"]:
+            for v in [None, "bob", "alice"]:
+                if v is None:
+                    os.environ.pop("TMX_PR_APPROVERS", None)
+                else:
+                    os.environ["TMX_PR_APPROVERS"] = v
+                try:
+                    out.append(json.dumps(g["run"](MT(deep % lvl), root=repo, base="main", junit=[jf2]),
+                                          sort_keys=True, default=str))
+                except Exception as e:
+                    out.append("E:" + type(e).__name__)
+        os.environ.pop("TMX_PR_APPROVERS", None)
+        for js in (True, False):
+            np = argparse.Namespace(policy=repo + "/test-policy.toml", policy_source=None, base="main",
+                                    root=repo, junit=[jf2], matrix=mf2, json=js)
+            try:
+                out.append(g["main"](np))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        missing_pol = argparse.Namespace(policy=repo + "/nope.toml", policy_source=None, base=None,
+                                         root=repo, junit=[jf2], matrix=mf2, json=False)
+        try:
+            out.append(g["main"](missing_pol))
+        except Exception as e:
+            out.append("E:" + type(e).__name__)
+        # Triers: a tier whose path matches the changed survivor file (so the triage block runs),
+        # and a budget the junit busts.
+        deep_tests = deep.replace('paths = ["pkg/*"]', 'paths = ["tests/*"]')
+        pol3 = MT(deep_tests % "R4")
+        for kw in (dict(root=repo, base="main", matrix_path=mf2),
+                   dict(root=repo, base="main", matrix_path=mf2, junit=[jf2])):
+            try:
+                out.append(json.dumps(g["run"](pol3, **kw), sort_keys=True, default=str))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        pol4 = MT((deep_tests.replace("max_tests = 50", "max_tests = 1")
+                   .replace("max_new_tests_per_pr = 1", "max_new_tests_per_pr = 0")) % "R5")
+        for kw in (dict(root=repo, base="main", junit=[jf2], matrix_path=mf2),
+                   dict(root=repo, base="main", junit=[jf2])):
+            try:
+                out.append(json.dumps(g["run"](pol4, **kw), sort_keys=True, default=str))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        # main() judging by the base policy (both branches) and the text report path.
+        for ps in ("base", "head"):
+            a2 = argparse.Namespace(policy=repo + "/test-policy.toml", policy_source=ps, base="main",
+                                    root=repo, junit=[jf2], matrix=mf2, json=False)
+            try:
+                out.append(g["main"](a2))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        # run() with a baseline carrying test ids (moves growth and unique-kill paths).
+        pol5 = dict(MT(deep_tests % "R4"))
+        pol5["_baseline_text"] = json.dumps({"tests": 1, "hidden_tests": 0, "test_ids": ["t::a"]})
+        for kw in (dict(root=repo, matrix_path=mf2, junit=[jf2]), dict(root=repo, matrix_path=mf2)):
+            try:
+                out.append(json.dumps(g["run"](pol5, **kw), sort_keys=True, default=str))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
     return out
 
 

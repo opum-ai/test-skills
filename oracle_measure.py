@@ -21,7 +21,12 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SCRIPTS = os.path.join(HERE, "skills", "test-audit", "scripts")
+REPO = None  # set below once SCRIPTS is known
+_CANDS = [HERE, os.path.dirname(HERE), "/Volumes/external/repos/test-skills"]
+SCRIPTS = next((os.path.join(r, "skills", "test-audit", "scripts") for r in _CANDS
+                if os.path.isdir(os.path.join(r, "skills", "test-audit", "scripts"))),
+               os.path.join(HERE, "skills", "test-audit", "scripts"))
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(SCRIPTS)))
 if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 SEED = 20261014
@@ -95,6 +100,57 @@ def corpus(g, module, rnd):
                 out.append(json.dumps(g["run"](pol, root=d, matrix_path=None), sort_keys=True, default=str))
             except Exception as e:
                 out.append("E:" + type(e).__name__)
+        # Deeper: a real git repo with a base ref, a junit and a matrix, so run(), main() and
+        # write_baseline are exercised (not just the parsers).
+        import subprocess as _sp
+        repo = tempfile.mkdtemp()
+        os.makedirs(repo + "/tests")
+        open(repo + "/tests/test_a.py", "w").write("def test_a():\n    assert 1 + 1 == 2\n")
+
+        def _g(*args):
+            _sp.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *args], cwd=repo,
+                    check=True, capture_output=True)
+        try:
+            _g("init", "-q", "-b", "main"); _g("add", "-A"); _g("commit", "-qm", "init")
+            _g("checkout", "-qb", "pr")
+            open(repo + "/tests/test_a.py", "a").write("def test_b():\n    assert 2 + 2 == 4\n")
+            _g("commit", "-qam", "add")
+        except Exception as e:
+            out.append("E:git:" + type(e).__name__)
+        jf = repo + "/r.xml"
+        open(jf, "w").write("<testsuite>" + "".join(
+            f"<testcase classname='t' name='n{i}'/>" for i in range(3)) + "</testsuite>")
+        mf = repo + "/m.json"
+        json.dump({"schema": "test-matrix/1", "tests": {"a::t": {"duration": 0.1}},
+                   "coverage": {"a::t": ["pkg/x.py:1"]},
+                   "mutants": {"m1": {"file": "pkg/x.py", "line": 1, "op": "const", "desc": "1 -> 0",
+                                      "status": "killed", "killed_by": ["a::t"]}}}, open(mf, "w"))
+        deep = 'version = 1\nrigor = "%s"\n[budget]\nmax_tests = 50\nmax_new_tests_per_pr = 1\n' \
+               '[[adequacy.tier]]\nname = "critical"\npaths = ["pkg/*"]\n[assurance]\napprovers = ["alice"]\n'
+        for lvl in ["R1", "R3", "R4", "R5"]:
+            p = MT(deep % lvl)
+            for kw in (dict(root=repo, base="main"), dict(root=repo, base="main", junit=[jf]),
+                       dict(root=repo, base="main", matrix_path=mf),
+                       dict(root=repo, base="main", junit=[jf], matrix_path=mf,
+                            pr_body="Test-Budget: reason\nRigor: R4\n")):
+                try:
+                    out.append(json.dumps(g["run"](p, **kw), sort_keys=True, default=str))
+                except Exception as e:
+                    out.append("E:" + type(e).__name__)
+        open(repo + "/test-policy.toml", "w").write(deep % "R3")
+        for ps, base in ((None, None), (None, "main"), ("base", "main")):
+            a = argparse.Namespace(policy=repo + "/test-policy.toml", policy_source=ps, base=base,
+                                   root=repo, junit=[jf], matrix=mf, json=True)
+            try:
+                out.append(g["main"](a))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        for kw in (dict(junit=[jf]), dict(matrix_path=mf), dict(junit=[jf], matrix_path=mf)):
+            try:
+                out.append(json.dumps(g["write_baseline"](repo, "bl.json", **kw), sort_keys=True, default=str))
+            except Exception as e:
+                out.append("E:" + type(e).__name__)
+        out.append(json.dumps(g["_load_list"](repo + "/nope.json"), default=str))
     return out
 
 
@@ -169,7 +225,7 @@ def measure(matrix_path, modules=MODULES):
                                        "coverage_pct": pct, "coverage": f"{cov_covered}/{cov_total}", "evidence": ev}
         print(f"{module}: {len(specs)} survivors, {eq} eq, {len(specs)-eq} obs; corpus covers {cov_covered}/{cov_total} lines ({pct}%)")
     artifact["equivalent_total"] = total_eq
-    outp = os.path.join(HERE, ".tmx", "oracle-e.json")
+    outp = os.path.join(REPO, ".tmx", "oracle-e.json")
     json.dump(artifact, open(outp, "w"), indent=1)
     print(f"TOTAL equivalent: {total_eq}; artifact -> {outp}")
 
@@ -177,7 +233,7 @@ def measure(matrix_path, modules=MODULES):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--worker", nargs=2, metavar=("SRC", "MODULE"))
-    ap.add_argument("--matrix", default=os.path.join(HERE, ".tmx", "crit.json"))
+    ap.add_argument("--matrix", default=os.path.join(REPO, ".tmx", "crit.json"))
     a = ap.parse_args()
     if a.worker:
         worker(a.worker[0], a.worker[1])

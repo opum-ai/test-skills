@@ -121,15 +121,27 @@ def test_a_stderr_only_difference_is_not_equivalent(tmp_path):
     assert verdict(tmp_path, "pass\n", "import sys\nsys.stderr.write('boom')\n")["equivalent"] is False
 
 
-def test_the_same_stderr_from_a_different_source_is_equivalent(tmp_path):
-    # Both import a sibling module (which would leave a __pycache__/*.pyc) and leave a
-    # random-named tempfile. Neither may make the mutant observable.
-    prog = "import sys, tempfile, mod\ntempfile.mkstemp()\nsys.stderr.write('same')\n"
+def test_tempfiles_are_ignored_and_a_deterministic_tmp_write_is_observable(tmp_path):
+    # (1) Random-named tempfiles inside the sandboxed temp dir are noise and must not make an
+    # otherwise-identical mutant observable, even with an imported sibling: both the default form
+    # and a SUFFIXED one (the suffix sits after the random part, so the shape must allow it).
+    prog = ("import os, sys, tempfile, mod\n"
+            "tempfile.mkstemp()\n"
+            "tempfile.mkstemp(suffix='.csv')\n"
+            "sys.stderr.write('same')\n")
     o = tree(tmp_path, "orig", prog)
     m = tree(tmp_path, "mut", prog + "# a different source\n")
     for d in (o, m):
         open(os.path.join(d, "mod.py"), "w").write("X = 1\n")
     assert equiv(o, m)["equivalent"] is True
+    # (2) A DETERMINISTIC write to the same temp dir, differing in content, must be observable:
+    # the verdict says "observed: ... tmp", so the whole tmp subtree cannot be dropped.
+    det = "open(os.path.join(tempfile.gettempdir(), 'report.txt'), 'w').write(%r)\n"
+    o2 = tree(tmp_path, "orig2", prog + det % "a")
+    m2 = tree(tmp_path, "mut2", prog + det % "b")
+    for d in (o2, m2):
+        open(os.path.join(d, "mod.py"), "w").write("X = 1\n")
+    assert equiv(o2, m2)["equivalent"] is False
 
 
 def test_a_file_changed_to_different_content_is_not_equivalent(tmp_path):

@@ -75,7 +75,11 @@ def _sandbox(root: str) -> Dict[str, str]:
     tmp = os.path.join(root, SANDBOX, "tmp")
     os.makedirs(home, exist_ok=True)
     os.makedirs(tmp, exist_ok=True)
-    return {"HOME": home, "TMPDIR": tmp, "TMP": tmp, "TEMP": tmp, "PYTHONHASHSEED": "0"}
+    # PYTHONDONTWRITEBYTECODE: an imported sibling would otherwise leave a __pycache__/*.pyc in
+    # each tree with a different mtime, so every mutant of an imported module, comment-only edits
+    # included, would read non-equivalent.
+    return {"HOME": home, "TMPDIR": tmp, "TMP": tmp, "TEMP": tmp, "PYTHONHASHSEED": "0",
+            "PYTHONDONTWRITEBYTECODE": "1"}
 
 
 def _run(python: str, cwd: str, argv: Sequence[str], env: Optional[dict], timeout: float) -> dict:
@@ -84,30 +88,42 @@ def _run(python: str, cwd: str, argv: Sequence[str], env: Optional[dict], timeou
     e.update(env or {})
     try:
         r = subprocess.run([python, *argv], cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout)
-        return {"exit": r.returncode, "stdout": r.stdout, "stderr": r.stderr, "timeout": False}
+        return {"exit": r.returncode, "stdout": r.stdout, "stderr": r.stderr, "timeout": False, "env": e}
     except subprocess.TimeoutExpired:
-        return {"exit": None, "stdout": "", "stderr": "", "timeout": True}
+        return {"exit": None, "stdout": "", "stderr": "", "timeout": True, "env": e}
 
 
 def _normalise(text: str, root: str) -> str:
     return text.replace(os.path.realpath(root), "<RUN>").replace(root, "<RUN>")
 
 
+def _recorded_env(e: dict, root: str) -> dict:
+    """The sandbox variables ACTUALLY passed, with the run directory normalised out, so two trees
+    of the same source record the same environment (a hard-coded constant would not show drift)."""
+    keys = ("HOME", "TMPDIR", "PYTHONHASHSEED", "PYTHONDONTWRITEBYTECODE")
+    return {k: _normalise(str(e.get(k, "")), root) for k in keys}
+
+
 def observable(python: str, root: str, argv: Sequence[str], env: Optional[dict] = None,
                timeout: float = DEFAULT_TIMEOUT) -> dict:
     """The observable result of one corpus entry: exit code, emitted records (with the run
     directory normalised out) and files written anywhere in the tree. Wall time and iteration
-    count are deliberately not part of it; the shaping environment is recorded for context."""
+    count are deliberately not part of it; the environment actually passed is recorded.
+
+    The sandbox temp directory is NOT part of the file channel: a program that leaves a
+    random-named tempfile there would otherwise read as observable. Files written anywhere else
+    under the tree are."""
     before = snapshot(root)
     r = _run(python, root, argv, env, timeout)
     after = snapshot(root)
-    written = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    written = [k for k in changed if not k.startswith(SANDBOX + "/tmp/")]
     # The state of each changed path, so two trees that change the SAME path to DIFFERENT content
     # (or different modes) are not read as equivalent.
     written_state = {k: (after[k] if k in after else "removed") for k in written}
     return {"exit": r["exit"], "stdout": _normalise(r["stdout"], root), "stderr": _normalise(r["stderr"], root),
             "written": written, "written_state": written_state, "timeout": r["timeout"],
-            "env": {"PYTHONHASHSEED": "0", "HOME": SANDBOX + "/home", "TMPDIR": SANDBOX + "/tmp"}}
+            "env": _recorded_env(r["env"], root)}
 
 
 def equivalent(python: str, original_dir: str, mutant_dir: str, corpus: Sequence[Sequence[str]],
@@ -117,19 +133,23 @@ def equivalent(python: str, original_dir: str, mutant_dir: str, corpus: Sequence
     """Classify a mutant whose tree is at `mutant_dir` against the original at `original_dir`.
 
     `required_lines` are the lines the mutation touches; `covered` are the lines the corpus
-    executed in the original. If any required line is not covered the mutant is "unreached"
-    and NOT equivalent, whatever the observables say. Otherwise every corpus entry is run in
-    both trees and the observable results compared, stopping at the first mismatch.
+    executed in the original. DEC-189 makes a mutant equivalent only if the corpus EXECUTES the
+    mutated line, so the reach guard FAILS CLOSED: with no reach information (`required_lines`
+    is None) the result is unreached, never equivalent. With reach information, any required line
+    not covered is unreached; otherwise every corpus entry is run in both trees and the observable
+    results compared, stopping at the first mismatch.
 
     Returns {"equivalent", "unreached", "seed", "evidence": [{"argv", "same", "original",
     "mutant"}, ...]}. `seed` is the recorded seed of the (later-slice) generated corpus.
     """
-    if required_lines:
-        cov = {int(x) for x in (covered or ())}
-        missing = sorted({int(x) for x in required_lines} - cov)
-        if missing:
-            return {"equivalent": False, "unreached": True, "missing_lines": missing,
-                    "seed": seed, "evidence": []}
+    if required_lines is None:
+        return {"equivalent": False, "unreached": True, "missing_lines": [],
+                "reason": "no reach information", "seed": seed, "evidence": []}
+    cov = {int(x) for x in (covered or ())}
+    missing = sorted({int(x) for x in required_lines} - cov)
+    if missing:
+        return {"equivalent": False, "unreached": True, "missing_lines": missing,
+                "seed": seed, "evidence": []}
     evidence: List[dict] = []
     for argv in corpus:
         a = observable(python, original_dir, argv, env=env, timeout=timeout)

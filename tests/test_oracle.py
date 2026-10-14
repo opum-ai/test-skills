@@ -2,12 +2,18 @@
 
 Each clause of the ruling gets a case: identical observable results are
 equivalent; a difference in return value, exit code, emitted record or file
-written is not; and a difference in wall time or iteration count alone is.
+written is not; a difference in wall time or iteration count alone is; and the
+reach guard fails closed. Review findings from test-skills#14 are pinned by
+declaring reach on every call and, in the stderr case, by having the programs
+import a sibling module and leave a tempfile (so a compiled sibling and a
+random-named temp file cannot make an equivalent mutant read as observable).
 """
 import os
 import sys
 
 from tmx import oracle
+
+REACH = list(range(1, 60))
 
 
 def tree(tmp_path, name, src):
@@ -17,16 +23,25 @@ def tree(tmp_path, name, src):
     return str(d)
 
 
+def equiv(o, m, corpus=(("prog.py",),), **kw):
+    kw.setdefault("required_lines", [1])
+    kw.setdefault("covered", REACH)
+    return oracle.equivalent(sys.executable, o, m, [list(c) for c in corpus], seed=7, **kw)
+
+
 def verdict(tmp_path, base, mutant, corpus=(("prog.py",),)):
-    o = tree(tmp_path, "orig", base)
-    m = tree(tmp_path, "mut", mutant)
-    return oracle.equivalent(sys.executable, o, m, [list(c) for c in corpus], seed=7)
+    return equiv(tree(tmp_path, "orig", base), tree(tmp_path, "mut", mutant), corpus)
 
 
 def test_identical_observable_results_are_equivalent(tmp_path):
-    res = verdict(tmp_path, "print('hi')\n", "print('hi')\n")
+    # The program prints its absolute working directory, which differs per tree; normalisation
+    # must remove it, and the recorded environment must carry no absolute path.
+    res = verdict(tmp_path, "import os\nprint(os.getcwd())\n", "import os\nprint(os.getcwd())\n")
     assert res["equivalent"] is True and res["seed"] == 7
     assert all(e["same"] for e in res["evidence"])
+    mut = res["evidence"][-1]["mutant"]
+    assert "<RUN>" in mut["stdout"] and str(tmp_path) not in mut["stdout"]
+    assert mut["env"]["PYTHONHASHSEED"] == "0" and not any(str(tmp_path) in v for v in mut["env"].values())
 
 
 def test_a_different_return_value_is_not_equivalent(tmp_path):
@@ -72,16 +87,18 @@ def test_evidence_stops_at_the_first_mismatch(tmp_path):
 def test_an_unexecuted_line_is_unreached_not_equivalent(tmp_path):
     o = tree(tmp_path, "orig", "print('hi')\n")
     m = tree(tmp_path, "mut", "print('hi')\n")
-    res = oracle.equivalent(sys.executable, o, m, [["prog.py"]], seed=7,
-                            required_lines=[2], covered=[1])
+    res = equiv(o, m, required_lines=[2], covered=[1])
     assert res["equivalent"] is False and res["unreached"] is True and res["missing_lines"] == [2]
+    # The reach guard FAILS CLOSED: no reach information at all is unreached, not equivalent.
+    none = oracle.equivalent(sys.executable, o, m, [["prog.py"]], seed=7)
+    assert none["equivalent"] is False and none["unreached"] is True
+    assert none["reason"] == "no reach information"
 
 
 def test_a_reached_line_with_a_matching_result_is_equivalent(tmp_path):
     o = tree(tmp_path, "orig", "print('hi')\n")
     m = tree(tmp_path, "mut", "print('hi')\n")
-    res = oracle.equivalent(sys.executable, o, m, [["prog.py"]], seed=7,
-                            required_lines=[1], covered=[1, 2])
+    res = equiv(o, m, required_lines=[1], covered=[1, 2])
     assert res["equivalent"] is True and res["unreached"] is False
 
 
@@ -102,21 +119,26 @@ def test_a_stderr_only_difference_is_not_equivalent(tmp_path):
 
 
 def test_the_same_stderr_from_a_different_source_is_equivalent(tmp_path):
-    base = "import sys\nsys.stderr.write('same')\n"
-    mutant = "import sys  # a different source\nsys.stderr.write('same')\n"
-    assert verdict(tmp_path, base, mutant)["equivalent"] is True
+    # Both import a sibling module (which would leave a __pycache__/*.pyc) and leave a
+    # random-named tempfile. Neither may make the mutant observable.
+    prog = "import sys, tempfile, mod\ntempfile.mkstemp()\nsys.stderr.write('same')\n"
+    o = tree(tmp_path, "orig", prog)
+    m = tree(tmp_path, "mut", prog + "# a different source\n")
+    for d in (o, m):
+        open(os.path.join(d, "mod.py"), "w").write("X = 1\n")
+    assert equiv(o, m)["equivalent"] is True
 
 
 def test_a_file_changed_to_different_content_is_not_equivalent(tmp_path):
     o = tree(tmp_path, "orig", "open('f.txt', 'w').write('a')\n")
     m = tree(tmp_path, "mut", "open('f.txt', 'w').write('b')\n")
-    assert oracle.equivalent(sys.executable, o, m, [["prog.py"]])["equivalent"] is False
+    assert equiv(o, m)["equivalent"] is False
 
 
 def test_the_same_file_written_by_both_is_equivalent(tmp_path):
     o = tree(tmp_path, "orig", "open('f.txt', 'w').write('a')\n")
     m = tree(tmp_path, "mut", "open('f.txt', 'w').write('a')\n")
-    assert oracle.equivalent(sys.executable, o, m, [["prog.py"]])["equivalent"] is True
+    assert equiv(o, m)["equivalent"] is True
 
 
 def test_a_removed_file_is_not_equivalent(tmp_path):
@@ -124,7 +146,7 @@ def test_a_removed_file_is_not_equivalent(tmp_path):
     m = tree(tmp_path, "mut", "import os\nos.remove('seed.txt')\n")
     for d in (o, m):
         open(os.path.join(d, "seed.txt"), "w").write("x")
-    assert oracle.equivalent(sys.executable, o, m, [["prog.py"]])["equivalent"] is False
+    assert equiv(o, m)["equivalent"] is False
 
 
 def test_a_present_unchanged_file_is_equivalent(tmp_path):
@@ -132,7 +154,7 @@ def test_a_present_unchanged_file_is_equivalent(tmp_path):
     m = tree(tmp_path, "mut", "pass\n")
     for d in (o, m):
         open(os.path.join(d, "seed.txt"), "w").write("x")
-    assert oracle.equivalent(sys.executable, o, m, [["prog.py"]])["equivalent"] is True
+    assert equiv(o, m)["equivalent"] is True
 
 
 def test_a_file_mode_change_is_not_equivalent(tmp_path):
@@ -142,4 +164,4 @@ def test_a_file_mode_change_is_not_equivalent(tmp_path):
         p = os.path.join(d, "seed.txt")
         open(p, "w").write("x")
         os.chmod(p, 0o644)
-    assert oracle.equivalent(sys.executable, o, m, [["prog.py"]])["equivalent"] is False
+    assert equiv(o, m)["equivalent"] is False

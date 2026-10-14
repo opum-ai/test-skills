@@ -9,7 +9,7 @@ source = ["skills/test-audit/scripts/tmx"]                 # source roots; used 
 test_roots = ["tests"]               # evals/fixtures holds deliberately bloated suites
 
 [budget]                            # Article II
-max_tests = 70           # total ceiling; amendment 2 (2026-09-26): 60 tests + one change's headroom
+max_tests = 79           # total ceiling; amendment 3 (DEC-195): DEC-189 equivalence oracle: 7 parametrized proofs plus 11 review-fix cases for test-skills#14 (DEC-195)
 max_suite_seconds = 60 # PR-tier wall time (JUnit sum)
 max_new_tests_per_pr = 8            # more needs a `Test-Budget: <reason>` trailer
 

@@ -102,8 +102,11 @@ def observable(python: str, root: str, argv: Sequence[str], env: Optional[dict] 
     r = _run(python, root, argv, env, timeout)
     after = snapshot(root)
     written = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    # The state of each changed path, so two trees that change the SAME path to DIFFERENT content
+    # (or different modes) are not read as equivalent.
+    written_state = {k: (after[k] if k in after else "removed") for k in written}
     return {"exit": r["exit"], "stdout": _normalise(r["stdout"], root), "stderr": _normalise(r["stderr"], root),
-            "written": written, "timeout": r["timeout"],
+            "written": written, "written_state": written_state, "timeout": r["timeout"],
             "env": {"PYTHONHASHSEED": "0", "HOME": SANDBOX + "/home", "TMPDIR": SANDBOX + "/tmp"}}
 
 

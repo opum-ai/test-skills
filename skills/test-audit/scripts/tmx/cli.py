@@ -37,6 +37,7 @@ def _analyze(a) -> int:
         "schema": "reduction-plan/1",
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "matrix": {"path": a.matrix, "commit": m.get("commit"), "tool": m.get("tool"), "scope": m.get("scope")},
+        "mutant_set_digest": m.get("mutants_digest"),
         "preserves": ["killed mutants"] + (["covered lines"] if a.lines else []),
         "objective": a.objective,
         "forced": forced,

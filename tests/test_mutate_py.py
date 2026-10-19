@@ -58,6 +58,8 @@ def test_every_family_yields_parseable_distinct_mutants(tmp_path):
     assert pycollect.mutant_set_digest(first) == pycollect.mutant_set_digest(specs())
     assert pycollect.mutant_set_digest(specs(sources=("pkg/m.py", "pkg/z.py"))) == \
         pycollect.mutant_set_digest(specs(sources=("pkg/z.py", "pkg/m.py")))   # input order is irrelevant
+    # The digest sorts its own input, so a caller that does not sort cannot move it.
+    assert pycollect.mutant_set_digest(list(reversed(first))) == pycollect.mutant_set_digest(first)
     # The seed selects the per-line sample: same slots, a different set.
     s0, s1 = specs(per_line=1, seed=0), specs(per_line=1, seed=1)
     assert len(s0) == len(s1) and pycollect.mutant_set_digest(s0) != pycollect.mutant_set_digest(s1)

@@ -396,6 +396,7 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
                     add("III", "history_must_be_killed",
                         f"{t_level}: a past real fault is not caught by the suite: {mu.get('desc')} ({mu['file']})")
         info["tiers"] = tier_scores
+        info["mutant_set_digest"] = m.get("mutants_digest")
         # Article XII - a new demotion must be certified: everything the demoted tests kill is
         # still killed by tests that stay in the PR tier.
         if new_p:

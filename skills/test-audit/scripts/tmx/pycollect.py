@@ -261,10 +261,23 @@ def build_specs(root, base, sources, operators, per_line, history, max_mutants, 
         by_line: Dict[tuple, list] = {}
         for sp in specs:
             by_line.setdefault((sp[0], sp[1]), []).append(sp)
-        sample_key = (lambda s: hash_str(s)) if seed is None else (lambda s: hash_str(f"{seed}:{s}"))
         specs = []
         for k in sorted(by_line):
-            specs.extend(sorted(by_line[k], key=lambda sp: (sample_key(sp[4]) % 997, sp[3]))[:per_line])
+            group = by_line[k]
+            if seed is None:
+                # Legacy pre-seed selection, preserved verbatim so an older matrix can still be
+                # re-derived by `verify --rerun`. It ranks by the rendered body, which is why it
+                # is legacy-only: that string differs between interpreters.
+                picked = sorted(group, key=lambda sp: (hash_str(sp[4]) % 997, sp[3]))[:per_line]
+            else:
+                # Rank by the candidate's stable identity (family, description) and its position
+                # in the candidate walk, never by the rendered body: hashing the body made the
+                # sampled SET depend on which Python built it (review round 2, F-A).
+                ranked = sorted(enumerate(group),
+                                key=lambda e: (hash_str(f"{seed}:{e[1][2]}:{e[1][3]}") % 997,
+                                               e[1][3], e[0]))
+                picked = [sp for _, sp in ranked[:per_line]]
+            specs.extend(picked)
     for x in sorted(extra or [], key=lambda e: (e.get("file", ""), e.get("find", ""),
                                                 e.get("replace", ""), e.get("desc", ""))):
         # Domain faults the operators cannot express: {"file", "find", "replace", "desc"}; `find`
@@ -310,7 +323,7 @@ def mutant_set_digest(specs) -> str:
     """
     h = hashlib.sha256()
     for key in sorted(sp[5] for sp in specs):
-        h.update(key.encode())
+        h.update(json.dumps(key).encode())   # JSON framing: a newline inside a key cannot collide
         h.update(b"\n")
     return h.hexdigest()
 

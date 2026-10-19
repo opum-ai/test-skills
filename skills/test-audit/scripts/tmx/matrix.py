@@ -9,7 +9,8 @@
   "coverage": {"<test id>": ["pkg/x.py:10", ...]},          # optional
   "mutants":  {"<mutant id>": {"file": "pkg/x.py", "line": 10, "op": "cmp", "desc": "< -> <=",
                                "status": "killed|survived|timeout|no_coverage|error",
-                               "killed_by": [...], "covered_by": [...]}}
+                               "killed_by": [...], "covered_by": [...]}},
+  "mutants_digest": "<sha256 over the sorted mutant set>"   # written by the collector (TS-25)
 }
 
 Obligations are what a reduction must preserve: `mutant:<id>` for every killed mutant and,

@@ -128,6 +128,7 @@ def _score(a) -> int:
     zero = [t for t in m["tests"] if not any(t in mu.get("killed_by", []) for mu in m["mutants"].values())]
     lines = {ln for cov in m["coverage"].values() for ln in cov}
     print(json.dumps({"tests": len(m["tests"]), "mutation": s, "mutants_by_status": by_status,
+                      "mutant_set_digest": m.get("mutants_digest"),
                       "zero_kill_tests": len(zero), "covered_lines": len(lines),
                       "duration_s": round(sum(float(t.get('duration', 0)) for t in m["tests"].values()), 4)},
                      indent=1))
@@ -157,6 +158,7 @@ def main(argv) -> int:
     c.add_argument("--pytest-arg", action="append", default=[])
     c.add_argument("--per-line", type=int, default=0, help="at most N mutants per source line (Google-style sampling)")
     c.add_argument("--history", type=int, default=0, help="add up to N real-fault mutants by reverting past fix commits")
+    c.add_argument("--seed", type=int, default=0, help="seed for deterministic sampling; recorded in the matrix")
     c.add_argument("--extra-mutants", help='JSON list of domain faults: [{"file","find","replace","desc"}]')
 
     s = sub.add_parser("import-stryker", help="convert a Stryker mutation-testing-report JSON")
@@ -325,9 +327,10 @@ def main(argv) -> int:
                               jobs=a.jobs, timeout_factor=a.timeout_factor, max_mutants=a.max_mutants,
                               operators=ops, pytest_args=a.pytest_arg, per_line=a.per_line, history=a.history,
                               extra=json.load(open(a.extra_mutants)) if a.extra_mutants else None,
-                              log=lambda s: print(s, file=sys.stderr))
+                              seed=a.seed, log=lambda s: print(s, file=sys.stderr))
         s = mx.mutation_score(m)
-        print(f"{len(m['tests'])} tests, {s['mutants']} mutants, score {_pct(s)} -> {a.out}")
+        print(f"{len(m['tests'])} tests, {s['mutants']} mutants, score {_pct(s)}, "
+              f"mutant-set digest {m.get('mutants_digest')} -> {a.out}")
         return 0
     if a.cmd == "import-stryker":
         from . import importers

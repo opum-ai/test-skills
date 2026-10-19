@@ -8,6 +8,7 @@ from __future__ import annotations
 import concurrent.futures as cf
 import difflib
 import datetime as dt
+import hashlib
 import json
 import os
 import shutil
@@ -85,7 +86,7 @@ def _py_files(root: str, sources: List[str]) -> List[str]:
 def collect(root: str, sources: List[str], tests: List[str], out_path: str, python: str = sys.executable,
             mutate: bool = True, jobs: int = 4, timeout_factor: float = 5.0, max_mutants: int = 0,
             operators: List[str] = mutate_py.OPERATORS, pytest_args: List[str] = (), log=print,
-            per_line: int = 0, history: int = 0, extra: Optional[list] = None) -> dict:
+            per_line: int = 0, history: int = 0, extra: Optional[list] = None, seed: int = 0) -> dict:
     root = os.path.abspath(root)
     work = tempfile.mkdtemp(prefix="tmx-")
     try:
@@ -124,10 +125,13 @@ def collect(root: str, sources: List[str], tests: List[str], out_path: str, pyth
             raise SystemExit("baseline coverage recorded no line of --src in the test run: the tests are not "
                              "importing this checkout's source (an installed copy shadows it?), so every mutant "
                              "would look harmless. Fix the import path before collecting a matrix.")
-        m["tool"].update({"per_line": per_line, "history": history, "max_mutants": max_mutants})
+        m["tool"].update({"per_line": per_line, "history": history, "max_mutants": max_mutants, "seed": seed})
         m["tool"]["extra"] = extra or []
-        specs = build_specs(root, base, sources, operators, per_line, history, max_mutants, log, extra=extra)
-        log(f"[tmx] {len(specs)} mutants over {len({s[0] for s in specs})} files; {jobs} workers")
+        specs = build_specs(root, base, sources, operators, per_line, history, max_mutants, log, extra=extra,
+                            seed=seed)
+        m["mutants_digest"] = mutant_set_digest(specs)
+        log(f"[tmx] {len(specs)} mutants over {len({s[0] for s in specs})} files, "
+            f"digest {m['mutants_digest'][:16]}; {jobs} workers")
 
         slots = []
         for j in range(jobs):
@@ -236,10 +240,16 @@ def collect(root: str, sources: List[str], tests: List[str], out_path: str, pyth
         shutil.rmtree(work, ignore_errors=True)
 
 
-def build_specs(root, base, sources, operators, per_line, history, max_mutants, log=print, extra=None) -> list:
-    """Deterministic mutant list: (file, line, family, desc, mutated source(s), unique key)."""
+def build_specs(root, base, sources, operators, per_line, history, max_mutants, log=print, extra=None,
+                seed: int = 0) -> list:
+    """Deterministic mutant list: (file, line, family, desc, mutated source(s), unique key).
+
+    `seed` makes the per-line sample reproducible and is recorded in the matrix; every
+    other choice here is already order-independent, so the caller's source order cannot
+    change the set either (`_py_files` sorts, and the loop below sorts again defensively).
+    """
     specs = []
-    for rel in _py_files(base, sources):
+    for rel in sorted(_py_files(base, sources)):
         with open(os.path.join(base, rel)) as f:
             src = f.read()
         for line, fam, desc, msrc in mutate_py.mutants_for(src, operators):
@@ -251,7 +261,7 @@ def build_specs(root, base, sources, operators, per_line, history, max_mutants, 
             by_line.setdefault((sp[0], sp[1]), []).append(sp)
         specs = []
         for k in sorted(by_line):
-            specs.extend(sorted(by_line[k], key=lambda sp: (hash_str(sp[4]) % 997, sp[3]))[:per_line])
+            specs.extend(sorted(by_line[k], key=lambda sp: (hash_str(f"{seed}:{sp[4]}") % 997, sp[3]))[:per_line])
     for x in extra or []:
         # Domain faults the operators cannot express: {"file", "find", "replace", "desc"}; `find`
         # must occur exactly once in the current file, or the mutant is stale and is skipped.
@@ -282,6 +292,23 @@ def build_specs(root, base, sources, operators, per_line, history, max_mutants, 
 def hash_str(s: str) -> int:
     import zlib
     return zlib.crc32(s.encode())
+
+
+def mutant_set_digest(specs) -> str:
+    """sha256 over the mutant set: sorted (unique key, mutated source) pairs.
+
+    Sorted so the caller's order cannot move it, and hashing the mutated source as well
+    as the key so a source edit that changes what a mutation does moves the digest even
+    when the mutation site and description are unchanged. Two builds of the same commit
+    and seed must produce the same digest; the acceptance proof runs that both ways.
+    """
+    h = hashlib.sha256()
+    for key, msrc in sorted((sp[5], sp[4]) for sp in specs):
+        h.update(key.encode())
+        h.update(b"\0")
+        h.update(hashlib.sha256(msrc.encode()).hexdigest().encode())
+        h.update(b"\n")
+    return h.hexdigest()
 
 
 def history_mutants(root: str, base: str, sources: List[str], n: int,
@@ -361,7 +388,7 @@ def rerun_certificate(root: str, m: dict, plan: dict, python: str = sys.executab
         specs = {sp[5]: sp for sp in build_specs(root, base, sources, tool.get("operators") or mutate_py.OPERATORS,
                                                   tool.get("per_line", 0), tool.get("history", 0),
                                                   tool.get("max_mutants", 0), log=lambda *_: None,
-                                                  extra=tool.get("extra"))}
+                                                  extra=tool.get("extra"), seed=tool.get("seed", 0))}
         wanted = []
         for ob in plan.get("certificate", {}):
             if not ob.startswith("mutant:"):

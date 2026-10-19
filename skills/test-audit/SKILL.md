@@ -56,6 +56,10 @@ static smells/clones plus JUnit counts, which gives a partial audit, labelled as
    - **Real faults:** `--history 20` adds up to 20 *real* faults by reverting past fix
      commits that still apply (see ADR-0002). Always include these when the repo has
      git history.
+   - **Reproducibility:** `--seed N` fixes the per-line sample. The collector records the
+     seed in the matrix and writes a mutant-set digest beside every score, so two builds
+     of the same commit and seed are comparable; a different digest means the mutant set
+     moved and the scores are not comparable.
    - **Scope:** restrict `--src` to one package at a time when the suite is huge. Say so
      in the report.
    - **Domain faults for critical code:** `--extra-mutants faults.json` (pytest collector), or

@@ -76,7 +76,8 @@ def _analyze(a) -> int:
           + ", ".join(f"{k} {v}" for k, v in sorted(reasons.items())) + ")")
     print(f"runtime: {plan['before']['duration_s']}s -> {plan['after']['duration_s']}s")
     print(f"mutation score: {_pct(before)} -> {_pct(after)} over {before['mutants']} mutants "
-          f"({'optimal' if res['optimal'] else 'best found; lower bound ' + str(plan['lower_bound'])})")
+          f"({'optimal' if res['optimal'] else 'best found; lower bound ' + str(plan['lower_bound'])}), "
+          f"mutant-set digest {m.get('mutants_digest')}")
     cv = plan["curve"]
     marks = [next((n for n, f in cv if f >= q), None) for q in (0.8, 0.9, 0.95)]
     print("trade-off: " + ", ".join(f"{int(q * 100)}% of obligations with {n} tests"

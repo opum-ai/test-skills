@@ -57,9 +57,12 @@ static smells/clones plus JUnit counts, which gives a partial audit, labelled as
      commits that still apply (see ADR-0002). Always include these when the repo has
      git history.
    - **Reproducibility:** `--seed N` fixes the per-line sample. The collector records the
-     seed in the matrix and writes a mutant-set digest beside every score, so two builds
-     of the same commit and seed are comparable; a different digest means the mutant set
-     moved and the scores are not comparable.
+     seed in the matrix and writes a mutant-set digest, which `collect-pytest`, `score`
+     and `analyze` print beside the score, so two builds of the same commit and seed are
+     comparable. The digest covers the mutant set itself (file, line, operator,
+     description), not the rendered mutant bodies, so it is stable across Python
+     versions; a different digest means the set moved and the scores are not comparable.
+     Imported Stryker/PIT matrices carry no digest, and `score` prints null for them.
    - **Scope:** restrict `--src` to one package at a time when the suite is huge. Say so
      in the report.
    - **Domain faults for critical code:** `--extra-mutants faults.json` (pytest collector), or

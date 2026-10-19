@@ -241,15 +241,17 @@ def collect(root: str, sources: List[str], tests: List[str], out_path: str, pyth
 
 
 def build_specs(root, base, sources, operators, per_line, history, max_mutants, log=print, extra=None,
-                seed: int = 0) -> list:
+                seed: Optional[int] = 0) -> list:
     """Deterministic mutant list: (file, line, family, desc, mutated source(s), unique key).
 
     `seed` makes the per-line sample reproducible and is recorded in the matrix; every
     other choice here is already order-independent, so the caller's source order cannot
-    change the set either (`_py_files` sorts, and the loop below sorts again defensively).
+    change the set either: the file walk is de-duplicated and sorted, the extra-mutant
+    list is sorted, and the per-line groups are visited in sorted order. `seed=None`
+    reproduces the legacy pre-seed selection so an older matrix can still be re-derived.
     """
     specs = []
-    for rel in sorted(_py_files(base, sources)):
+    for rel in sorted(set(_py_files(base, sources))):
         with open(os.path.join(base, rel)) as f:
             src = f.read()
         for line, fam, desc, msrc in mutate_py.mutants_for(src, operators):
@@ -259,10 +261,12 @@ def build_specs(root, base, sources, operators, per_line, history, max_mutants, 
         by_line: Dict[tuple, list] = {}
         for sp in specs:
             by_line.setdefault((sp[0], sp[1]), []).append(sp)
+        sample_key = (lambda s: hash_str(s)) if seed is None else (lambda s: hash_str(f"{seed}:{s}"))
         specs = []
         for k in sorted(by_line):
-            specs.extend(sorted(by_line[k], key=lambda sp: (hash_str(f"{seed}:{sp[4]}") % 997, sp[3]))[:per_line])
-    for x in extra or []:
+            specs.extend(sorted(by_line[k], key=lambda sp: (sample_key(sp[4]) % 997, sp[3]))[:per_line])
+    for x in sorted(extra or [], key=lambda e: (e.get("file", ""), e.get("find", ""),
+                                                e.get("replace", ""), e.get("desc", ""))):
         # Domain faults the operators cannot express: {"file", "find", "replace", "desc"}; `find`
         # must occur exactly once in the current file, or the mutant is stale and is skipped.
         fp = os.path.join(base, x["file"])
@@ -295,18 +299,18 @@ def hash_str(s: str) -> int:
 
 
 def mutant_set_digest(specs) -> str:
-    """sha256 over the mutant set: sorted (unique key, mutated source) pairs.
+    """sha256 over the mutant set: the sorted unique keys, and nothing else.
 
-    Sorted so the caller's order cannot move it, and hashing the mutated source as well
-    as the key so a source edit that changes what a mutation does moves the digest even
-    when the mutation site and description are unchanged. Two builds of the same commit
-    and seed must produce the same digest; the acceptance proof runs that both ways.
+    A key is `file:line:family:description#occurrence`, which is the set's identity and
+    is stable across interpreters. The mutated BODY is deliberately not hashed: it is a
+    rendered module, and `ast.unparse` re-renders differently on 3.9 and 3.12 (3.9
+    parenthesizes tuple-unpacking targets), which made an earlier version of this digest
+    an artifact of which Python built it. Sorting makes the caller's order irrelevant,
+    and keys are unique by construction, so the sort never compares bodies.
     """
     h = hashlib.sha256()
-    for key, msrc in sorted((sp[5], sp[4]) for sp in specs):
+    for key in sorted(sp[5] for sp in specs):
         h.update(key.encode())
-        h.update(b"\0")
-        h.update(hashlib.sha256(msrc.encode()).hexdigest().encode())
         h.update(b"\n")
     return h.hexdigest()
 
@@ -388,7 +392,7 @@ def rerun_certificate(root: str, m: dict, plan: dict, python: str = sys.executab
         specs = {sp[5]: sp for sp in build_specs(root, base, sources, tool.get("operators") or mutate_py.OPERATORS,
                                                   tool.get("per_line", 0), tool.get("history", 0),
                                                   tool.get("max_mutants", 0), log=lambda *_: None,
-                                                  extra=tool.get("extra"), seed=tool.get("seed", 0))}
+                                                  extra=tool.get("extra"), seed=tool.get("seed"))}
         wanted = []
         for ob in plan.get("certificate", {}):
             if not ob.startswith("mutant:"):

@@ -1,5 +1,6 @@
 """AST mutants must be valid, distinct from the original, and cover every operator family."""
 import ast
+import subprocess
 
 from tmx import mutate_py
 
@@ -45,15 +46,42 @@ def test_every_family_yields_parseable_distinct_mutants(tmp_path):
     pkg.mkdir()
     mod = pkg / "m.py"
     mod.write_text(SRC)
+    (pkg / "z.py").write_text("def second(a):\n    return a - 1\n")
 
-    def specs():
-        return pycollect.build_specs(str(tmp_path), str(tmp_path), ["pkg/m.py"],
-                                     mutate_py.OPERATORS, 0, 0, 0, log=lambda *_: None)
+    def specs(sources=("pkg/m.py",), per_line=0, seed=0, history=0):
+        return pycollect.build_specs(str(tmp_path), str(tmp_path), list(sources),
+                                     mutate_py.OPERATORS, per_line, history, 0,
+                                     log=lambda *_: None, seed=seed)
 
-    first, second = specs(), specs()
-    assert [s[5] for s in first] == [s[5] for s in second]
-    assert pycollect.mutant_set_digest(first) == pycollect.mutant_set_digest(second)
-    mod.write_text(SRC.replace("x * 2", "x * 3"))      # one-line change moves the digest
+    first = specs()
+    assert [s[5] for s in first] == [s[5] for s in specs()]          # same source, same set
+    assert pycollect.mutant_set_digest(first) == pycollect.mutant_set_digest(specs())
+    assert pycollect.mutant_set_digest(specs(sources=("pkg/m.py", "pkg/z.py"))) == \
+        pycollect.mutant_set_digest(specs(sources=("pkg/z.py", "pkg/m.py")))   # input order is irrelevant
+    # The seed selects the per-line sample: same slots, a different set.
+    s0, s1 = specs(per_line=1, seed=0), specs(per_line=1, seed=1)
+    assert len(s0) == len(s1) and pycollect.mutant_set_digest(s0) != pycollect.mutant_set_digest(s1)
+    # A source edit that changes the mutant set moves the digest...
+    mod.write_text(SRC.replace("x * 2", "x * 3"))
     changed = specs()
     assert [s[5] for s in changed] != [s[5] for s in first]
     assert pycollect.mutant_set_digest(changed) != pycollect.mutant_set_digest(first)
+    # ...while an edit that is not a mutation site leaves the set (and its digest) alone.
+    mod.write_text(SRC.replace("x * 2", "x * 3").replace(
+        '"""Docstring is never mutated."""', '"""Docstring edited, still never mutated."""'))
+    assert pycollect.mutant_set_digest(specs()) == pycollect.mutant_set_digest(changed)
+
+    # History mutants carry {file: text} rather than a string; the digest must accept both,
+    # and this is the path an earlier version of the digest crashed on.
+    mod.write_text("def add(a, b):\n    return a - b\n")
+    git = lambda *args: subprocess.run(  # noqa: E731
+        ["git", "-c", "user.email=t@example.com", "-c", "user.name=t", *args],
+        cwd=tmp_path, check=True, capture_output=True)
+    git("init", "-q", "-b", "main")
+    git("add", "-A")
+    git("commit", "-qm", "init")
+    mod.write_text("def add(a, b):\n    return a + b\n")
+    git("commit", "-qam", "fix sign bug in add")
+    hist = specs(history=1)
+    assert any(s[2] == "history" and isinstance(s[4], dict) for s in hist)
+    assert pycollect.mutant_set_digest(hist) == pycollect.mutant_set_digest(specs(history=1))

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from tmx import gate
+from tmx import matrix as mx
 
 
 def write(tmp_path, name, obj):
@@ -52,6 +53,10 @@ def test_quarantine_windows(tmp_path, level, age, rule):
     write(tmp_path, ".test-quarantine.json", [{"test": "t", "since": since}])
     res = gate.run({"rigor": level}, root=str(tmp_path))
     assert [v["rule"] for v in res["violations"] if v["rule"] != "approval"] == ([rule] if rule else [])
+    # An unreadable state file is treated as empty rather than crashing the gate.
+    (tmp_path / "bad").mkdir()
+    (tmp_path / "bad" / ".test-quarantine.json").write_text("{not json")
+    assert gate.run({"rigor": "R3"}, root=str(tmp_path / "bad"))["violations"] == []
 
 
 def test_budget_growth_needs_a_trailer_and_at_r4_an_approval(tmp_path, monkeypatch):
@@ -62,6 +67,13 @@ def test_budget_growth_needs_a_trailer_and_at_r4_an_approval(tmp_path, monkeypat
     monkeypatch.delenv("TMX_PR_APPROVERS", raising=False)
     rules = lambda body: [v["rule"] for v in gate.run(pol, root=str(tmp_path), junit=[str(junit)], pr_body=body)["violations"]]  # noqa: E731
     assert rules("") == ["max_tests", "max_new_tests_per_pr"]
+    # Failures and skips are counted from the same report the gate already reads.
+    junit.write_text("<testsuite><testcase classname='t' name='ok'/>"
+                     "<testcase classname='t' name='bad'><failure/></testcase>"
+                     "<testcase classname='t' name='skipped'><skipped/></testcase></testsuite>")
+    totals = gate.junit_totals([str(junit)])
+    assert (totals["tests"], totals["failed"], totals["skipped"]) == (3, 1, 1)
+    junit.write_text("<testsuite>" + "".join(f"<testcase classname='t' name='n{i}' time='0.1'/>" for i in range(5)) + "</testsuite>")
     assert rules("Test-Budget: new module\n") == ["max_tests", "max_new_tests_per_pr"]   # R4: trailer alone is not enough
     monkeypatch.setenv("TMX_PR_APPROVERS", "alice")
     assert rules("Test-Budget: new module\n") == ["max_tests"]
@@ -110,6 +122,9 @@ def test_protection_is_by_exact_id_from_the_protected_file_not_by_name(tmp_path,
     res = gate.run(policy, root=str(tmp_path), matrix_path=write(tmp_path, "m.json", MATRIX))
     weak = [v["message"].split()[0] for v in res["violations"] if v["rule"] == "require_unique_kill"]
     assert weak == ["new_dup"]      # new_dup is still judged; only the listed id is exempt
+    # A matrix from another schema version is a usage error, not something half-read.
+    with pytest.raises(SystemExit):
+        mx.load(write(tmp_path, "bad-schema.json", {"schema": "other/9", "tests": {}}))
 
 
 def test_a_change_cannot_triage_its_own_survivors_without_approval(tmp_path, monkeypatch):

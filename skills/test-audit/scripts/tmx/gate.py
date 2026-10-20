@@ -9,6 +9,7 @@ With `--base`, that baseline is also checked against the base commit's own colle
 no longer matches fails by name, in either direction, and moves only by amendment (DEC-209).
 
 Every violation names its article. Exit 0 = pass, 1 = violations, 2 = bad policy.
+A state file that exists but cannot be parsed is a named violation, never an empty list (DEC-213).
 """
 from __future__ import annotations
 
@@ -180,18 +181,40 @@ def _touched_lines(root: str, base: str, files: List[str]) -> Dict[str, Set[int]
     return out
 
 
-def _load_list(path: str) -> list:
-    try:
-        return json.load(open(path)) if os.path.exists(path) else []
-    except ValueError:
-        return []
+class StateFileError(Exception):
+    """A state file that exists but cannot be parsed.
+
+    Reading it as empty is the fail-open behaviour DEC-213 ruled against: the gate cannot tell
+    a test hidden in that file from an absent one, so it must name the file rather than pass.
+    """
+
+    def __init__(self, path: str, kind: str, error: Exception):
+        self.path, self.kind, self.error = path, kind, error
+        super().__init__(f"{path} ({kind}) cannot be parsed: {error}")
 
 
-def _load_list_text(text: str) -> list:
-    try:
-        return json.loads(text) if text.strip() else []
-    except ValueError:
+def _load_list(path: str, kind: str) -> list:
+    """A missing file is no entries; an existing one that will not parse is a named failure."""
+    if not os.path.exists(path):
         return []
+    try:
+        return json.load(open(path))
+    except ValueError as e:
+        raise StateFileError(path, kind, e) from e
+
+
+def _load_list_at(root: str, ref: str, path: str, kind: str) -> list:
+    """The same list as it exists at `ref`.
+
+    `git show` alone cannot tell a missing file from an empty one, and under DEC-213 an existing
+    empty file is a parse failure rather than an absence, so presence is asked separately.
+    """
+    if not _git(root, "ls-tree", "--name-only", ref, "--", path).strip():
+        return []
+    try:
+        return json.loads(_git(root, "show", f"{ref}:{path}"))
+    except ValueError as e:
+        raise StateFileError(f"{ref}:{path}", kind, e) from e
 
 
 def _match(path: str, globs: List[str]) -> bool:
@@ -377,10 +400,22 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
     fl = policy.get("flaky", {})
     qname = fl.get("quarantine_file", ".test-quarantine.json")
     pname = ".test-probation.json"
-    head_q, head_p = _load_list(os.path.join(root, qname)), _load_list(os.path.join(root, pname))
+    head_q, head_p, base_q, base_p = [], [], [], []
+    try:
+        head_q = _load_list(os.path.join(root, qname), "quarantine")
+        head_p = _load_list(os.path.join(root, pname), "probation")
+        if base:
+            base_q = _load_list_at(root, base, qname, "quarantine")
+            base_p = _load_list_at(root, base, pname, "probation")
+    except StateFileError as e:
+        # DEC-213: a file the gate cannot parse is a named violation and never passes. The lists
+        # stay empty only so the rest of the gate still runs; this violation already fails the run.
+        add("XI" if e.kind == "quarantine" else "XII", "unreadable_state_file",
+            f"{e.path} is the {e.kind} state file and cannot be parsed ({e.error}): the gate cannot "
+            "tell a hidden test from an absent one, so it fails closed rather than reading the file "
+            "as no entries (DEC-213)")
+        head_q, head_p, base_q, base_p = [], [], [], []
     if base:
-        base_q, base_p = _load_list_text(_git(root, "show", f"{base}:{qname}")), \
-            _load_list_text(_git(root, "show", f"{base}:{pname}"))
         new_q = [e for e in head_q if e.get("test") not in {x.get("test") for x in base_q}]
         new_p = [e for e in head_p if e.get("test") not in {x.get("test") for x in base_p}]
         for e in new_q:
@@ -652,8 +687,13 @@ def write_baseline(root: str, out: str, junit: List[str] = (), matrix_path: Opti
     if junit:
         t = junit_totals(list(junit))
         # The PR-tier run excludes probation and quarantine; record them so growth compares like with like.
-        hidden = {e.get("test") for n in (".test-probation.json", ".test-quarantine.json")
-                  for e in _load_list(os.path.join(root, n))}
+        try:
+            hidden = {e.get("test")
+                      for n, kind in ((".test-probation.json", "probation"),
+                                      (".test-quarantine.json", "quarantine"))
+                      for e in _load_list(os.path.join(root, n), kind)}
+        except StateFileError as e:
+            raise SystemExit(f"gate: {e}") from e
         b.update({"tests": t["tests"], "hidden_tests": len(hidden), "seconds": t["seconds"],
                   "test_ids": sorted(t["ids"]), "id_source": "junit"})
     if matrix_path:

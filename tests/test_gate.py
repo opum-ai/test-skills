@@ -99,12 +99,98 @@ def test_a_change_cannot_loosen_its_own_gate(repo):
     (repo / "test-policy.toml").write_text(POLICY.format(level="R3").replace("max_new_tests_per_pr = 1", "max_new_tests_per_pr = 99"))
     (repo / ".test-baseline.json").write_text(json.dumps({"tests": 3}))
     junit = repo / "r.xml"
-    junit.write_text("<testsuite>" + "".join(f"<testcase classname='t' name='n{i}'/>" for i in range(3)) + "</testsuite>")
+    # Real node ids: the gate measures the base tree's own collection, so a fabricated classname
+    # would read as a baseline that no longer describes the base rather than as the growth it is.
+    junit.write_text("<testsuite>" + "".join(f"<testcase classname='tests.test_a' name='test_{n}'/>"
+                                             for n in "abc") + "</testsuite>")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "loosen")
     r = subprocess.run([sys.executable, TMX, "gate", "--policy", "test-policy.toml", "--junit", "r.xml", "--base", "main"],
                        cwd=repo, capture_output=True, text=True)
     assert r.returncode == 1 and "max_new_tests_per_pr" in r.stdout and '"policy_source": "base"' in r.stdout
+
+
+def _junit(path, names):
+    path.write_text("<testsuite>" + "".join(f"<testcase classname='tests.test_a' name='{n}' time='0.1'/>"
+                                             for n in names) + "</testsuite>")
+
+
+def test_a_baseline_that_matches_the_base_commits_measured_count_passes(tmp_path):
+    # The base collects three ids: test_a and test_b are the PR tier, test_slow is deselected and absent
+    # from both the run and the baseline. The PR deletes test_b and adds test_c. The baseline says 2, and
+    # 2 is what the base contributes: the deselected test is scoped out, and the deleted one still counts
+    # because the baseline lists it, so a reduction is not read as a stale baseline it could not repair.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_a.py").write_text(
+        "def test_a():\n    assert 1 + 1 == 2\n\n\ndef test_b():\n    assert 2 + 2 == 4\n"
+        "\n\ndef test_slow():\n    assert 3 + 3 == 6\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "tests" / "test_a.py").write_text(
+        "def test_a():\n    assert 1 + 1 == 2\n\n\ndef test_c():\n    assert 4 + 4 == 8\n"
+        "\n\ndef test_slow():\n    assert 3 + 3 == 6\n")
+    git(tmp_path, "commit", "-qam", "drop one, add one")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps(
+        {"tests": 2, "test_ids": ["tests.test_a::test_a", "tests.test_a::test_b"]}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a", "test_c"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), junit=[str(junit)], base="main")
+    assert res["info"]["baseline_measured"] == 2
+    assert res["passed"] is True
+
+
+@pytest.mark.parametrize("recorded", [0, 2])
+def test_a_baseline_that_does_not_match_the_base_count_fails_by_name(repo, recorded):
+    # 0 is the shipped bug (below the base's count); 2 is the same mismatch upwards. Both refuse.
+    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (repo / ".test-baseline.json").write_text(json.dumps({"tests": recorded}))
+    junit = repo / "r.xml"
+    _junit(junit, ["test_a", "test_b"])
+    sha = subprocess.run(["git", "rev-parse", "main"], cwd=repo, capture_output=True, text=True).stdout.strip()
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+    msg = [v["message"] for v in res["violations"] if v["rule"] == "stale_baseline"][0]
+    assert f"says {recorded} tests" in msg and "runs 1" in msg     # both numbers
+    assert sha in msg                                              # the base SHA
+    assert "Article XIII" in msg and "only way" in msg             # the only way to move it
+    assert res["passed"] is False
+
+
+def test_an_unmeasurable_base_fails_the_baseline_check_rather_than_passing_it(tmp_path):
+    # A PARTIAL collection is not a measurement either: the good file still prints ids, so a gate that
+    # only looked for output would count a partial base as measured and compare against the wrong number.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_good.py").write_text("def test_ok():\n    assert 1 == 1\n")
+    (tmp_path / "tests" / "test_broken.py").write_text("def test_x(:\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), junit=[str(junit)], base="main")
+    assert "baseline_unmeasured" in {v["rule"] for v in res["violations"]} and res["passed"] is False
+
+
+def test_a_tree_with_no_pytest_suite_is_not_measured(tmp_path):
+    # The check applies to pytest suites; another language's junit still drives the growth rules.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "a.test.js").write_text("test('a', () => expect(1).toBe(1));\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), junit=[str(junit)], base="main")
+    assert res["info"]["baseline_measured"] == "not-a-pytest-project"
+    assert not any(v["rule"] in ("stale_baseline", "baseline_unmeasured") for v in res["violations"])
 
 
 def test_adding_only_a_skip_decorator_to_an_existing_test_is_caught(tmp_path):

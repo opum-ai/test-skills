@@ -229,6 +229,8 @@ def main(argv) -> int:
     g.add_argument("--json", action="store_true")
     g.add_argument("--policy-source", choices=["base", "head"],
                    help="where to read policy+baseline; default 'base' when --base is given (anti-tamper)")
+    g.add_argument("--python", default=sys.executable,
+                   help="interpreter for `pytest --collect-only` in the base tree (baseline freshness)")
 
     su = sub.add_parser("subsumes", help="do the --by tests kill every mutant the --tests tests kill? (exit 3 if not)")
     su.add_argument("matrix")

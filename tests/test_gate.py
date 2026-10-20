@@ -340,10 +340,14 @@ def test_a_base_tree_that_drops_its_tests_cannot_be_measured(tmp_path):
 
 def test_collected_ids_folds_a_class_into_the_module_part():
     # JUnit's `classname` folds the class into the module, so a collected class-based id must
-    # fold too; a parametrized id keeps its own `::` in the name and must not be read as a class.
+    # fold too, at every level of nesting (a nested class is `A::B::test`, reported by JUnit as
+    # `mod.A.B::test`); a parametrized id keeps its own `::` in the name and must not be read as
+    # a class, including inside the parameter.
     got = gate._collected_ids("tests/test_a.py::TestX::test_y\n"
+                              "tests/test_a.py::Outer::Inner::test_z\n"
                               "tests/test_a.py::test_p[a::b]\n")
-    assert got == {"tests.test_a.TestX::test_y", "tests.test_a::test_p[a::b]"}
+    assert got == {"tests.test_a.TestX::test_y", "tests.test_a.Outer.Inner::test_z",
+                   "tests.test_a::test_p[a::b]"}
 
 
 def test_matrix_coverage_of_a_changed_test_scopes_the_tiers(tmp_path):

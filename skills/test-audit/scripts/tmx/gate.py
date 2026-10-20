@@ -234,10 +234,13 @@ def _collected_ids(stdout: str) -> Set[str]:
         module = module.replace("/", ".").replace("\\", ".")
         # A class-based node id is `file::Class::test`; a parametrized id may itself contain `::`,
         # so the class form is recognised by the first segment not carrying the parameter list.
+        # Every leading class segment folds into the module, not just one: a nested class is
+        # `file::A::B::test` and JUnit reports `classname="mod.A.B"`, so folding one level leaves
+        # `mod.A::B::test`, which never intersects the reported id and undercounts the base.
         parts = rest.split("::")
-        if len(parts) > 1 and "[" not in parts[0]:
-            module, rest = f"{module}.{parts[0]}", "::".join(parts[1:])
-        ids.add(f"{module}::{rest}")
+        while len(parts) > 1 and "[" not in parts[0]:
+            module, parts = f"{module}.{parts[0]}", parts[1:]
+        ids.add(f"{module}::{'::'.join(parts)}")
     return ids
 
 

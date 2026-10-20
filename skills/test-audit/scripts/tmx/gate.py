@@ -16,8 +16,9 @@ import json
 import os
 import re
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from . import matrix as mx
 from . import rigor
@@ -211,8 +212,86 @@ def _approvers(policy: dict) -> Optional[Set[str]]:
     return got & allowed if allowed else got
 
 
+# ------------------------------------------------------- the base commit's measured count
+
+_BASE_COLLECT_TIMEOUT = 300.0
+
+
+def _collected_ids(stdout: str) -> Set[str]:
+    """`pytest --collect-only -q` node ids, normalised to the JUnit `module::name` form.
+
+    A class-based test folds its class into the module part, because JUnit's `classname` does:
+    `tests/test_a.py::TestX::test_y[p]` is the id `tests.test_a.TestX::test_y[p]`.
+    """
+    ids: Set[str] = set()
+    for line in stdout.splitlines():
+        if "::" not in line or line.startswith(" "):
+            continue
+        path, _, rest = line.strip().partition("::")
+        module = path[:-3] if path.endswith(".py") else path
+        module = module.replace("/", ".").replace("\\", ".")
+        parts = rest.split("::")
+        ids.add(f"{module}.{parts[0]}::{parts[1]}" if len(parts) > 1 else f"{module}::{parts[0]}")
+    return ids
+
+
+def _has_python_tests(tree: str, roots: Optional[List[str]]) -> bool:
+    """Whether the extracted base tree holds a pytest suite this measurement can apply to."""
+    for start in [os.path.join(tree, r.rstrip("/")) for r in roots] if roots else [tree]:
+        for _, _, names in os.walk(start):
+            if any(n.endswith(".py") and (n.startswith("test_") or n.endswith("_test.py")) for n in names):
+                return True
+    return False
+
+
+def _measure_base_tests(root: str, base: str, python: Optional[str] = None,
+                        roots: Optional[List[str]] = None) -> Tuple[bool, Optional[Set[str]]]:
+    """(applicable, ids): what pytest collects in the base commit's tree, measured, not assumed.
+
+    The recorded baseline is the auditable reference and is never derived at run time (DEC-209);
+    this reads the base commit itself so the gate can REFUSE a baseline that no longer describes
+    it. A throwaway `git archive` extraction keeps the PR's own working tree, and any uncommitted
+    edit to it, out of the measurement. `(False, None)` means the tree is not a pytest project
+    (nothing to measure); `(True, None)` means the measurement was owed and could not be taken,
+    which the gate reports as a failure rather than letting the baseline pass unexamined.
+    """
+    import shutil
+    import tarfile
+    import tempfile
+
+    work = tempfile.mkdtemp(prefix="tmx-base-")
+    try:
+        archive = os.path.join(work, "base.tar")
+        with open(archive, "wb") as out:
+            try:
+                subprocess.run(["git", "archive", "--format=tar", base], cwd=root, stdout=out,
+                               stderr=subprocess.DEVNULL, check=True)
+            except Exception:
+                return True, None
+        tree = os.path.join(work, "tree")
+        os.mkdir(tree)
+        with tarfile.open(archive) as tf:
+            try:
+                tf.extractall(tree, filter="data")     # Python 3.12+
+            except TypeError:                          # Python < 3.12 has no extraction filters
+                tf.extractall(tree)
+        if not _has_python_tests(tree, roots):
+            return False, None
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        proc = subprocess.run([python or sys.executable, "-m", "pytest", "--collect-only", "-q",
+                               "-o", "addopts=", "-p", "no:cacheprovider"],
+                              cwd=tree, capture_output=True, text=True, timeout=_BASE_COLLECT_TIMEOUT,
+                              env=env)
+        ids = _collected_ids(proc.stdout)
+        return (True, ids) if ids else (True, None)
+    except (subprocess.TimeoutExpired, OSError):
+        return True, None
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optional[str] = None,
-        base: Optional[str] = None, pr_body: str = "") -> dict:
+        base: Optional[str] = None, pr_body: str = "", python: Optional[str] = None) -> dict:
     v: List[dict] = []
     info: Dict[str, object] = {}
     add = lambda art, rule, msg: v.append({"article": art, "rule": rule, "message": msg})  # noqa: E731
@@ -295,6 +374,33 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
                                    "reduce (test-reduce) or amend the constitution")
         if budget.get("max_suite_seconds") is not None and totals["seconds"] > budget["max_suite_seconds"]:
             add("II", "max_suite_seconds", f"suite takes {totals['seconds']}s, budget {budget['max_suite_seconds']}s")
+        if baseline and budget.get("max_new_tests_per_pr") is not None and base:
+            # The recorded baseline is the auditable reference: it must describe the base commit,
+            # and it moves only by amendment, never by run-time derivation (DEC-209). Scoping the
+            # base's collected ids by this run's ids keeps the comparison like-for-like, whatever
+            # markers the project's CI deselects.
+            recorded = int(baseline.get("tests", 0))
+            sha = _git(root, "rev-parse", base + "^{commit}").strip() or base
+            applicable, measured = _measure_base_tests(root, base, python, policy.get("test_roots"))
+            if not applicable:
+                info["baseline_measured"] = "not-a-pytest-project"
+            elif measured is None:
+                info["baseline_measured"] = None
+                add("II", "baseline_unmeasured",
+                    f"the recorded baseline says {recorded} tests and the base commit {sha} could not be "
+                    "measured: `pytest --collect-only` produced nothing in a copy of that tree, so the "
+                    "baseline's freshness cannot be established. Fix the base tree's collection; a "
+                    "baseline that cannot be checked never passes")
+            else:
+                seen = len(measured & totals["ids"])
+                info["baseline_measured"] = seen
+                if seen != recorded:
+                    add("II", "stale_baseline",
+                        f"the recorded baseline says {recorded} tests, but the base commit {sha} runs "
+                        f"{seen}: the baseline no longer describes the base, in one direction or the "
+                        "other, and a mismatch never passes. Refresh .test-baseline.json in the same "
+                        "change that moves the count, through the normal amendment path (Article XIII), "
+                        "which records why the reference moved")
         if baseline and budget.get("max_new_tests_per_pr") is not None:
             # Compare like with like: the baseline counts the PR-tier run plus demoted tests.
             grown = total_tests - int(baseline.get("tests", 0)) - int(baseline.get("hidden_tests", 0))
@@ -483,7 +589,7 @@ def main(a) -> int:
         policy["_baseline_text"] = b
     try:
         res = run(policy, root=a.root, junit=a.junit, matrix_path=a.matrix, base=a.base,
-                  pr_body=os.environ.get("TMX_PR_BODY", ""))
+                  pr_body=os.environ.get("TMX_PR_BODY", ""), python=getattr(a, "python", None))
     except SystemExit as e:
         print(e)
         return 2

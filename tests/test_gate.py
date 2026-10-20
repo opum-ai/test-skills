@@ -99,12 +99,63 @@ def test_a_change_cannot_loosen_its_own_gate(repo):
     (repo / "test-policy.toml").write_text(POLICY.format(level="R3").replace("max_new_tests_per_pr = 1", "max_new_tests_per_pr = 99"))
     (repo / ".test-baseline.json").write_text(json.dumps({"tests": 3}))
     junit = repo / "r.xml"
-    junit.write_text("<testsuite>" + "".join(f"<testcase classname='t' name='n{i}'/>" for i in range(3)) + "</testsuite>")
+    # Real node ids: the gate measures the base tree's own collection, so a fabricated classname
+    # would read as a baseline that no longer describes the base rather than as the growth it is.
+    junit.write_text("<testsuite>" + "".join(f"<testcase classname='tests.test_a' name='test_{n}'/>"
+                                             for n in "abc") + "</testsuite>")
     git(repo, "add", "-A")
     git(repo, "commit", "-qm", "loosen")
     r = subprocess.run([sys.executable, TMX, "gate", "--policy", "test-policy.toml", "--junit", "r.xml", "--base", "main"],
                        cwd=repo, capture_output=True, text=True)
     assert r.returncode == 1 and "max_new_tests_per_pr" in r.stdout and '"policy_source": "base"' in r.stdout
+
+
+def _junit(path, names):
+    path.write_text("<testsuite>" + "".join(f"<testcase classname='tests.test_a' name='{n}' time='0.1'/>"
+                                             for n in names) + "</testsuite>")
+
+
+@pytest.mark.parametrize("recorded,stale", [(1, False), (0, True), (2, True)])
+def test_the_baseline_must_match_the_base_commits_measured_count(repo, recorded, stale):
+    # The base commit collects one test (test_a); the PR adds test_b. A baseline of 1 describes
+    # the base, and both 0 (below, the shipped bug) and 2 (above) are refused by name.
+    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (repo / ".test-baseline.json").write_text(json.dumps({"tests": recorded}))
+    junit = repo / "r.xml"
+    _junit(junit, ["test_a", "test_b"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+    found = [v for v in res["violations"] if v["rule"] == "stale_baseline"]
+    assert bool(found) is stale
+    if stale:
+        msg = found[0]["message"]
+        assert f"says {recorded} tests" in msg and "runs 1" in msg           # both numbers
+        assert gate._git(str(repo), "rev-parse", "main").strip() in msg     # the base SHA
+        assert "Article XIII" in msg and "amendment" in msg                 # only way to move it
+        assert res["passed"] is False
+    else:
+        assert res["info"]["baseline_measured"] == 1
+
+
+def test_an_unmeasurable_base_fails_the_baseline_check_rather_than_passing_it(repo, monkeypatch):
+    # A baseline that could not be checked must never read as fresh.
+    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (repo / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = repo / "r.xml"
+    _junit(junit, ["test_a", "test_b"])
+    monkeypatch.setattr(gate, "_measure_base_tests", lambda *a, **k: (True, None))
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+    assert "baseline_unmeasured" in {v["rule"] for v in res["violations"]} and res["passed"] is False
+
+
+def test_a_tree_with_no_pytest_suite_is_not_measured(repo, monkeypatch):
+    # The check applies to pytest suites; other projects' junit still drives the growth rules.
+    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (repo / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = repo / "r.xml"
+    _junit(junit, ["test_a", "test_b"])
+    monkeypatch.setattr(gate, "_measure_base_tests", lambda *a, **k: (False, None))
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+    assert not any(v["rule"] in ("stale_baseline", "baseline_unmeasured") for v in res["violations"])
 
 
 def test_adding_only_a_skip_decorator_to_an_existing_test_is_caught(tmp_path):

@@ -53,10 +53,25 @@ def test_quarantine_windows(tmp_path, level, age, rule):
     write(tmp_path, ".test-quarantine.json", [{"test": "t", "since": since}])
     res = gate.run({"rigor": level}, root=str(tmp_path))
     assert [v["rule"] for v in res["violations"] if v["rule"] != "approval"] == ([rule] if rule else [])
-    # An unreadable state file is treated as empty rather than crashing the gate.
-    (tmp_path / "bad").mkdir()
-    (tmp_path / "bad" / ".test-quarantine.json").write_text("{not json")
-    assert gate.run({"rigor": "R3"}, root=str(tmp_path / "bad"))["violations"] == []
+    # An existing state file that cannot be parsed is a named violation, never an empty list
+    # (DEC-213): the gate cannot tell a hidden test from an absent one, so it fails closed.
+    # Both directions in one invocation shape: valid files pass, then each kind fails by name.
+    bad = tmp_path / "bad"
+    bad.mkdir()
+    write(bad, ".test-quarantine.json", [])
+    write(bad, ".test-probation.json", [])
+    assert gate.run({"rigor": "R3"}, root=str(bad))["violations"] == []
+
+    (bad / ".test-quarantine.json").write_text("{not json")
+    found = [(v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
+    assert [rule for rule, _ in found] == ["unreadable_state_file"]
+    assert ".test-quarantine.json" in found[0][1] and "quarantine" in found[0][1]
+
+    write(bad, ".test-quarantine.json", [])
+    (bad / ".test-probation.json").write_text("{not json")
+    found = [(v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
+    assert [rule for rule, _ in found] == ["unreadable_state_file"]
+    assert ".test-probation.json" in found[0][1] and "probation" in found[0][1]
 
 
 def test_budget_growth_needs_a_trailer_and_at_r4_an_approval(tmp_path, monkeypatch):

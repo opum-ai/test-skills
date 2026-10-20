@@ -21,7 +21,7 @@ The deliverable is four files and one CI step:
 | `TEST-CONSTITUTION.md` | 13 articles: the rules, why, and which are gated. Humans read this. |
 | `test-policy.toml` | Every number: budgets, risk tiers, admission rules, quarantine, probation. `tmx gate` reads this. |
 | managed block in `CLAUDE.md` / `AGENTS.md` | The six rules an agent needs *while writing a test*. |
-| `.test-baseline.json` | The ratchet: the accepted suite state. |
+| `.test-baseline.json` | The ratchet: the accepted suite state. The gate measures the base commit's own collection and refuses a baseline whose count no longer matches it, in either direction (DEC-209). |
 | CI: `tmx gate` | Fails the change, and names the article, when a rule is broken. |
 
 ## Workflow
@@ -78,6 +78,11 @@ The deliverable is four files and one CI step:
    - Run the suite with JUnit output, then
      `python3 ${CLAUDE_SKILL_DIR}/../test-audit/scripts/tmx.py baseline --junit <xml>`.
      Use `--matrix` too if a kill matrix exists.
+   - Refresh the baseline **in the same change that moves the count**. With `--base`, the gate
+     measures the base commit's own collection (a `pytest --collect-only` over a throwaway copy
+     of that tree) and fails by name when the recorded count differs in either direction, so a
+     baseline left behind reads as phantom growth on every later PR. Moving it is an Article XIII
+     amendment, because it moves the per-change limit's reference point.
    - Run `tmx gate --policy test-policy.toml --junit <xml>` once locally. On adoption day
      it must pass, since budgets start at today's state. Fix the policy, not the gate, if
      it does not.

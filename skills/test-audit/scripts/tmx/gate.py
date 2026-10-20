@@ -5,6 +5,8 @@ Reads test-policy.toml, plus whatever evidence the CI job provides:
   --matrix     a tmx test matrix (mutation adequacy per tier, marginal-value admission)
   --base       git ref of the PR base (changed test files, new tests, Test-Budget trailers)
 and the committed baseline `.test-baseline.json` (test ids and totals at the last accepted state).
+With `--base`, that baseline is also checked against the base commit's own collection: a count that
+no longer matches fails by name, in either direction, and moves only by amendment (DEC-209).
 
 Every violation names its article. Exit 0 = pass, 1 = violations, 2 = bad policy.
 """

@@ -115,46 +115,63 @@ def _junit(path, names):
                                              for n in names) + "</testsuite>")
 
 
-@pytest.mark.parametrize("recorded,stale", [(1, False), (0, True), (2, True)])
-def test_the_baseline_must_match_the_base_commits_measured_count(repo, recorded, stale):
-    # The base commit collects one test (test_a); the PR adds test_b. A baseline of 1 describes
-    # the base, and both 0 (below, the shipped bug) and 2 (above) are refused by name.
+def test_a_baseline_that_matches_the_base_commits_measured_count_passes(repo):
+    # The base commit collects one test (test_a) and the PR adds test_b, so 1 describes the base.
+    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (repo / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = repo / "r.xml"
+    _junit(junit, ["test_a", "test_b"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+    assert "stale_baseline" not in {v["rule"] for v in res["violations"]}
+    assert res["info"]["baseline_measured"] == 1
+
+
+@pytest.mark.parametrize("recorded", [0, 2])
+def test_a_baseline_that_does_not_match_the_base_count_fails_by_name(repo, recorded):
+    # 0 is the shipped bug (below the base's count); 2 is the same mismatch upwards. Both refuse.
     (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
     (repo / ".test-baseline.json").write_text(json.dumps({"tests": recorded}))
     junit = repo / "r.xml"
     _junit(junit, ["test_a", "test_b"])
+    sha = subprocess.run(["git", "rev-parse", "main"], cwd=repo, capture_output=True, text=True).stdout.strip()
     res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
-    found = [v for v in res["violations"] if v["rule"] == "stale_baseline"]
-    assert bool(found) is stale
-    if stale:
-        msg = found[0]["message"]
-        assert f"says {recorded} tests" in msg and "runs 1" in msg           # both numbers
-        assert gate._git(str(repo), "rev-parse", "main").strip() in msg     # the base SHA
-        assert "Article XIII" in msg and "amendment" in msg                 # only way to move it
-        assert res["passed"] is False
-    else:
-        assert res["info"]["baseline_measured"] == 1
+    msg = [v["message"] for v in res["violations"] if v["rule"] == "stale_baseline"][0]
+    assert f"says {recorded} tests" in msg and "runs 1" in msg     # both numbers
+    assert sha in msg                                              # the base SHA
+    assert "Article XIII" in msg and "amendment" in msg            # the only way to move it
+    assert res["passed"] is False
 
 
-def test_an_unmeasurable_base_fails_the_baseline_check_rather_than_passing_it(repo, monkeypatch):
-    # A baseline that could not be checked must never read as fresh.
-    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
-    (repo / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
-    junit = repo / "r.xml"
-    _junit(junit, ["test_a", "test_b"])
-    monkeypatch.setattr(gate, "_measure_base_tests", lambda *a, **k: (True, None))
-    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+def test_an_unmeasurable_base_fails_the_baseline_check_rather_than_passing_it(tmp_path):
+    # A base whose suite does not collect cannot be measured, and that must never read as fresh.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_broken.py").write_text("def test_x(:\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), junit=[str(junit)], base="main")
     assert "baseline_unmeasured" in {v["rule"] for v in res["violations"]} and res["passed"] is False
 
 
-def test_a_tree_with_no_pytest_suite_is_not_measured(repo, monkeypatch):
-    # The check applies to pytest suites; other projects' junit still drives the growth rules.
-    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
-    (repo / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
-    junit = repo / "r.xml"
-    _junit(junit, ["test_a", "test_b"])
-    monkeypatch.setattr(gate, "_measure_base_tests", lambda *a, **k: (False, None))
-    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
+def test_a_tree_with_no_pytest_suite_is_not_measured(tmp_path):
+    # The check applies to pytest suites; another language's junit still drives the growth rules.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "a.test.js").write_text("test('a', () => expect(1).toBe(1));\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), junit=[str(junit)], base="main")
+    assert res["info"]["baseline_measured"] == "not-a-pytest-project"
     assert not any(v["rule"] in ("stale_baseline", "baseline_unmeasured") for v in res["violations"])
 
 

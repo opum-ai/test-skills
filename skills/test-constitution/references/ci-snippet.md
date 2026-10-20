@@ -23,6 +23,6 @@ jobs:
 
 `tools/tmx/` is a copy of the plugin's `skills/test-audit/scripts/` directory (stdlib
 only). Commit `.test-baseline.json`, and refresh it with `tmx.py baseline` when an accepted
-change lands. Refresh it in the same change that moves the count: with `--base` the gate
-measures the base commit's own collection and refuses a baseline that no longer matches it,
-in either direction.
+change lands. Refresh it in the same change that moves the count: with `--base` and a JUnit
+report the gate measures the base commit's own collection and refuses a baseline that no
+longer matches it, in either direction; a partial collection counts as unmeasured and fails.

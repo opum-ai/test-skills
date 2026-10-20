@@ -115,15 +115,31 @@ def _junit(path, names):
                                              for n in names) + "</testsuite>")
 
 
-def test_a_baseline_that_matches_the_base_commits_measured_count_passes(repo):
-    # The base commit collects one test (test_a) and the PR adds test_b, so 1 describes the base.
-    (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
-    (repo / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
-    junit = repo / "r.xml"
-    _junit(junit, ["test_a", "test_b"])
-    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(repo), junit=[str(junit)], base="main")
-    assert "stale_baseline" not in {v["rule"] for v in res["violations"]}
-    assert res["info"]["baseline_measured"] == 1
+def test_a_baseline_that_matches_the_base_commits_measured_count_passes(tmp_path):
+    # The base collects three ids: test_a and test_b are the PR tier, test_slow is deselected and absent
+    # from both the run and the baseline. The PR deletes test_b and adds test_c. The baseline says 2, and
+    # 2 is what the base contributes: the deselected test is scoped out, and the deleted one still counts
+    # because the baseline lists it, so a reduction is not read as a stale baseline it could not repair.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_a.py").write_text(
+        "def test_a():\n    assert 1 + 1 == 2\n\n\ndef test_b():\n    assert 2 + 2 == 4\n"
+        "\n\ndef test_slow():\n    assert 3 + 3 == 6\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "tests" / "test_a.py").write_text(
+        "def test_a():\n    assert 1 + 1 == 2\n\n\ndef test_c():\n    assert 4 + 4 == 8\n"
+        "\n\ndef test_slow():\n    assert 3 + 3 == 6\n")
+    git(tmp_path, "commit", "-qam", "drop one, add one")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps(
+        {"tests": 2, "test_ids": ["tests.test_a::test_a", "tests.test_a::test_b"]}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a", "test_c"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), junit=[str(junit)], base="main")
+    assert res["info"]["baseline_measured"] == 2
+    assert res["passed"] is True
 
 
 @pytest.mark.parametrize("recorded", [0, 2])
@@ -138,13 +154,15 @@ def test_a_baseline_that_does_not_match_the_base_count_fails_by_name(repo, recor
     msg = [v["message"] for v in res["violations"] if v["rule"] == "stale_baseline"][0]
     assert f"says {recorded} tests" in msg and "runs 1" in msg     # both numbers
     assert sha in msg                                              # the base SHA
-    assert "Article XIII" in msg and "amendment" in msg            # the only way to move it
+    assert "Article XIII" in msg and "only way" in msg             # the only way to move it
     assert res["passed"] is False
 
 
 def test_an_unmeasurable_base_fails_the_baseline_check_rather_than_passing_it(tmp_path):
-    # A base whose suite does not collect cannot be measured, and that must never read as fresh.
+    # A PARTIAL collection is not a measurement either: the good file still prints ids, so a gate that
+    # only looked for output would count a partial base as measured and compare against the wrong number.
     (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_good.py").write_text("def test_ok():\n    assert 1 == 1\n")
     (tmp_path / "tests" / "test_broken.py").write_text("def test_x(:\n")
     git(tmp_path, "init", "-q", "-b", "main")
     git(tmp_path, "add", "-A")

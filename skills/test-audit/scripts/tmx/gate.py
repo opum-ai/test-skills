@@ -232,16 +232,29 @@ def _collected_ids(stdout: str) -> Set[str]:
         path, _, rest = line.strip().partition("::")
         module = path[:-3] if path.endswith(".py") else path
         module = module.replace("/", ".").replace("\\", ".")
+        # A class-based node id is `file::Class::test`; a parametrized id may itself contain `::`,
+        # so the class form is recognised by the first segment not carrying the parameter list.
         parts = rest.split("::")
-        ids.add(f"{module}.{parts[0]}::{parts[1]}" if len(parts) > 1 else f"{module}::{parts[0]}")
+        if len(parts) > 1 and "[" not in parts[0]:
+            module, rest = f"{module}.{parts[0]}", "::".join(parts[1:])
+        ids.add(f"{module}::{rest}")
     return ids
 
 
-def _has_python_tests(tree: str, roots: Optional[List[str]]) -> bool:
-    """Whether the extracted base tree holds a pytest suite this measurement can apply to."""
+def _is_python_test_file(name: str) -> bool:
+    base = os.path.basename(name)
+    return base.endswith(".py") and (base.startswith("test_") or base.endswith("_test.py"))
+
+
+def _under_roots(name: str, roots: Optional[List[str]]) -> bool:
+    return not roots or any(name == r.rstrip("/") or name.startswith(r.rstrip("/") + "/") for r in roots)
+
+
+def _tree_has_python_tests(tree: str, roots: Optional[List[str]]) -> bool:
+    """Whether the extracted base tree arrived with the suite the tracked tree promised."""
     for start in [os.path.join(tree, r.rstrip("/")) for r in roots] if roots else [tree]:
         for _, _, names in os.walk(start):
-            if any(n.endswith(".py") and (n.startswith("test_") or n.endswith("_test.py")) for n in names):
+            if any(_is_python_test_file(n) for n in names):
                 return True
     return False
 
@@ -261,6 +274,15 @@ def _measure_base_tests(root: str, base: str, python: Optional[str] = None,
     import tarfile
     import tempfile
 
+    # Applicability is read from the tracked tree, not from the extraction: `git archive` honours
+    # `export-ignore`, so a suite the archive drops must read as unmeasured, never as absent.
+    try:
+        tracked = subprocess.run(["git", "ls-tree", "-r", "--name-only", base], cwd=root,
+                                 capture_output=True, text=True, check=True).stdout.splitlines()
+    except Exception:
+        return True, None
+    if not any(_is_python_test_file(n) and _under_roots(n, roots) for n in tracked):
+        return False, None
     work = tempfile.mkdtemp(prefix="tmx-base-")
     try:
         archive = os.path.join(work, "base.tar")
@@ -272,20 +294,25 @@ def _measure_base_tests(root: str, base: str, python: Optional[str] = None,
                 return True, None
         tree = os.path.join(work, "tree")
         os.mkdir(tree)
-        with tarfile.open(archive) as tf:
-            try:
-                tf.extractall(tree, filter="data")     # Python 3.12+
-            except TypeError:                          # Python < 3.12 has no extraction filters
-                tf.extractall(tree)
-        if not _has_python_tests(tree, roots):
-            return False, None
+        try:
+            with tarfile.open(archive) as tf:
+                try:
+                    tf.extractall(tree, filter="data")     # Python 3.12+
+                except TypeError:                          # Python < 3.12 has no extraction filters
+                    tf.extractall(tree)
+        except (tarfile.TarError, EOFError, ValueError):
+            return True, None
+        if not _tree_has_python_tests(tree, roots):
+            return True, None
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
         proc = subprocess.run([python or sys.executable, "-m", "pytest", "--collect-only", "-q",
                                "-o", "addopts=", "-p", "no:cacheprovider"],
                               cwd=tree, capture_output=True, text=True, timeout=_BASE_COLLECT_TIMEOUT,
                               env=env)
-        ids = _collected_ids(proc.stdout)
-        return (True, ids) if ids else (True, None)
+        # A partial collection is not a measurement: one broken module still prints the other ids.
+        if proc.returncode != 0:
+            return True, None
+        return True, (_collected_ids(proc.stdout) or None)
     except (subprocess.TimeoutExpired, OSError):
         return True, None
     finally:
@@ -376,11 +403,14 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
                                    "reduce (test-reduce) or amend the constitution")
         if budget.get("max_suite_seconds") is not None and totals["seconds"] > budget["max_suite_seconds"]:
             add("II", "max_suite_seconds", f"suite takes {totals['seconds']}s, budget {budget['max_suite_seconds']}s")
+        if not (baseline and budget.get("max_new_tests_per_pr") is not None and base):
+            info["baseline_measured"] = "skipped (needs --base, a JUnit report, a baseline and max_new_tests_per_pr)"
         if baseline and budget.get("max_new_tests_per_pr") is not None and base:
             # The recorded baseline is the auditable reference: it must describe the base commit,
             # and it moves only by amendment, never by run-time derivation (DEC-209). Scoping the
-            # base's collected ids by this run's ids keeps the comparison like-for-like, whatever
-            # markers the project's CI deselects.
+            # base's collected ids keeps the comparison like-for-like whatever markers the project's
+            # CI deselects: this run's ids carry the tier, and the baseline's own ids keep a test the
+            # PR deleted or renamed from reading as a stale baseline it could not repair.
             recorded = int(baseline.get("tests", 0))
             sha = _git(root, "rev-parse", base + "^{commit}").strip() or base
             applicable, measured = _measure_base_tests(root, base, python, policy.get("test_roots"))
@@ -390,19 +420,20 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
                 info["baseline_measured"] = None
                 add("II", "baseline_unmeasured",
                     f"the recorded baseline says {recorded} tests and the base commit {sha} could not be "
-                    "measured: `pytest --collect-only` produced nothing in a copy of that tree, so the "
-                    "baseline's freshness cannot be established. Fix the base tree's collection; a "
-                    "baseline that cannot be checked never passes")
+                    "measured: `pytest --collect-only` failed or collected nothing in a copy of that tree, "
+                    "so the baseline's freshness cannot be established. A partial collection is not a "
+                    "measurement either: fix the base tree until it collects cleanly; a baseline that "
+                    "cannot be checked never passes")
             else:
-                seen = len(measured & totals["ids"])
+                seen = len(measured & (totals["ids"] | set(baseline.get("test_ids") or ())))
                 info["baseline_measured"] = seen
                 if seen != recorded:
                     add("II", "stale_baseline",
                         f"the recorded baseline says {recorded} tests, but the base commit {sha} runs "
                         f"{seen}: the baseline no longer describes the base, in one direction or the "
-                        "other, and a mismatch never passes. Refresh .test-baseline.json in the same "
-                        "change that moves the count, through the normal amendment path (Article XIII), "
-                        "which records why the reference moved")
+                        "other, and a mismatch never passes. Moving it is an amendment and the only way "
+                        "it can move (Article XIII): refresh .test-baseline.json through that path in the "
+                        "same change, so the record says why the reference moved")
         if baseline and budget.get("max_new_tests_per_pr") is not None:
             # Compare like with like: the baseline counts the PR-tier run plus demoted tests.
             grown = total_tests - int(baseline.get("tests", 0)) - int(baseline.get("hidden_tests", 0))

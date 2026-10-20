@@ -62,7 +62,8 @@ the [rigor profiles spec](docs/specs/engineering-rigor-profiles.md).
 collect-pytest   per-test coverage + kill matrix: AST mutants (incl. money literals, rounding modes, raise
                  deletion, min/max/sum swaps) run against covering tests in throwaway copies, survival
                  confirmed on the full suite, hangs attributed; control run must be green;
-                 --history N adds real past bugs; --extra-mutants adds domain faults
+                 --history N adds real past bugs; --extra-mutants adds domain faults;
+                 --seed N fixes sampling; the matrix records the seed and a digest of the mutant set
 import-stryker   JS/TS/C#/Scala kill matrices        import-pit   Java/Kotlin kill matrices
 analyze          minimal kill-preserving subset (set cover, exact B&B + bound) + certificate + curve
 verify [--rerun] independent certificate check; --rerun replays each mutant against the retained suite

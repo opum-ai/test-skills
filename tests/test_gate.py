@@ -1,4 +1,5 @@
 """The gate end to end on a throwaway git repo: budget, smells, rigor levels, approvals."""
+import datetime as dt
 import json
 import os
 import subprocess
@@ -216,6 +217,154 @@ def test_adding_only_a_skip_decorator_to_an_existing_test_is_caught(tmp_path):
     git(tmp_path, "commit", "-qam", "skip it")
     res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path), base="main")
     assert "smell:skipped" in {v["rule"] for v in res["violations"]}
+
+
+def _base_repo(tmp_path, files):
+    """A repo whose `main` carries `files`, checked out on a `pr` branch with nothing changed yet."""
+    for name, text in files.items():
+        p = tmp_path / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text)
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    return tmp_path
+
+
+def _commit(tmp_path, message):
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", message)
+
+
+def test_a_suite_slower_than_its_budget_is_flagged(tmp_path):
+    # The budget compares the SUM of the report's durations. The policy also sets a per-change
+    # growth limit while no baseline exists: a case with no baseline must not reach for one.
+    junit = tmp_path / "r.xml"
+    junit.write_text("<testsuite><testcase classname='t' name='a' time='30'/>"
+                     "<testcase classname='t' name='b' time='30'/></testsuite>")
+    pol = {"rigor": "R3", "budget": {"max_suite_seconds": 50, "max_new_tests_per_pr": 1}}
+    res = gate.run(pol, root=str(tmp_path), junit=[str(junit)])
+    assert [v["rule"] for v in res["violations"]] == ["max_suite_seconds"]
+    assert res["violations"][0]["message"] == "suite takes 60.0s, budget 50s"
+    assert gate.junit_totals([str(junit)])["seconds"] == 60.0
+
+
+def test_a_skipped_test_over_the_limit_is_flagged(tmp_path):
+    junit = tmp_path / "r.xml"
+    pol = {"rigor": "R3", "flaky": {"max_skipped": 0}, "budget": {"max_new_tests_per_pr": 1}}
+    junit.write_text("<testsuite><testcase classname='t' name='ok'/>"
+                     "<testcase classname='t' name='skipped'><skipped/></testcase></testsuite>")
+    res = gate.run(pol, root=str(tmp_path), junit=[str(junit)])
+    assert [v["rule"] for v in res["violations"]] == ["max_skipped"]
+    assert res["violations"][0]["message"] == "1 skipped tests, limit 0"
+    junit.write_text("<testsuite><testcase classname='t' name='ok'/></testsuite>")
+    assert gate.run(pol, root=str(tmp_path), junit=[str(junit)])["violations"] == []
+
+
+def test_a_changed_test_with_too_many_mocks_is_flagged(tmp_path):
+    # The limit is the profile's own 3, not something the policy has to repeat: three mocks are
+    # at the limit and pass, four exceed it. Only the offending test is named.
+    _base_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n"})
+    (tmp_path / "tests" / "test_a.py").write_text(
+        "from unittest.mock import Mock\n\n\n"
+        "def test_at_the_limit():\n"
+        "    a, b, c = Mock(), Mock(), Mock()\n"
+        "    assert a.called is False and b.called is False and c.called is False\n\n\n"
+        "def test_over_the_limit():\n"
+        "    a, b, c, d = Mock(), Mock(), Mock(), Mock()\n"
+        "    assert d.called is False\n")
+    _commit(tmp_path, "add mock-heavy tests")
+    res = gate.run({"rigor": "R3"}, root=str(tmp_path), base="main")
+    msgs = [v["message"] for v in res["violations"] if v["rule"] == "max_mocks_per_test"]
+    assert len(msgs) == 1
+    assert "test_over_the_limit" in msgs[0] and "(limit 3 at R3)" in msgs[0]
+
+
+def test_a_new_quarantine_entry_at_r4_needs_an_approver(tmp_path, monkeypatch):
+    monkeypatch.delenv("TMX_PR_APPROVERS", raising=False)
+    _base_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                          ".test-quarantine.json": "[]"})
+    (tmp_path / ".test-quarantine.json").write_text(json.dumps(
+        [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat(),
+          "owner": "alice", "issue": "https://example.invalid/1"}]))
+    _commit(tmp_path, "quarantine one")
+    res = gate.run({"rigor": "R4"}, root=str(tmp_path), base="main")
+    assert [v["rule"] for v in res["violations"]] == ["quarantine_entry"]
+    assert "needs a listed approver" in res["violations"][0]["message"]
+    # The same change at R3 is judged by the entry's own justification, not by an approver.
+    assert gate.run({"rigor": "R3"}, root=str(tmp_path), base="main")["violations"] == []
+
+
+def test_a_new_quarantine_entry_without_owner_and_issue_is_flagged(tmp_path):
+    _base_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                          ".test-quarantine.json": "[]"})
+    (tmp_path / ".test-quarantine.json").write_text(json.dumps(
+        [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat()}]))
+    _commit(tmp_path, "quarantine one with no justification")
+    res = gate.run({"rigor": "R3"}, root=str(tmp_path), base="main")
+    assert [v["rule"] for v in res["violations"]] == ["quarantine_entry"]
+    assert "without an owner and an issue link" in res["violations"][0]["message"]
+
+
+def test_a_new_probation_entry_without_a_matrix_is_flagged(tmp_path):
+    _base_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                          ".test-probation.json": "[]"})
+    (tmp_path / ".test-probation.json").write_text(json.dumps(
+        [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat()}]))
+    _commit(tmp_path, "demote one")
+    res = gate.run({"rigor": "R3"}, root=str(tmp_path), base="main")
+    assert "uncertified_demotion" in {v["rule"] for v in res["violations"]}
+    # A matrix is what certifies the demotion; supplying one clears the finding.
+    m = {"schema": "test-matrix/1", "tests": {}, "coverage": {}, "mutants": {}}
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(m))
+    res = gate.run({"rigor": "R3"}, root=str(tmp_path), base="main", matrix_path=str(path))
+    assert "uncertified_demotion" not in {v["rule"] for v in res["violations"]}
+
+
+def test_a_base_tree_that_drops_its_tests_cannot_be_measured(tmp_path):
+    # The tracked tree promises a suite; `git archive` is told to leave it out. The measurement is
+    # owed and cannot be taken, which is a failure — not the same thing as a tree with no suite.
+    _base_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                          ".gitattributes": "tests/ export-ignore\n"})
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps({"tests": 1}))
+    junit = tmp_path / "r.xml"
+    _junit(junit, ["test_a"])
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path),
+                   junit=[str(junit)], base="main")
+    assert "baseline_unmeasured" in {v["rule"] for v in res["violations"]}
+    assert res["info"]["baseline_measured"] is None
+
+
+def test_collected_ids_folds_a_class_into_the_module_part():
+    # JUnit's `classname` folds the class into the module, so a collected class-based id must
+    # fold too; a parametrized id keeps its own `::` in the name and must not be read as a class.
+    got = gate._collected_ids("tests/test_a.py::TestX::test_y\n"
+                              "tests/test_a.py::test_p[a::b]\n")
+    assert got == {"tests.test_a.TestX::test_y", "tests.test_a::test_p[a::b]"}
+
+
+def test_matrix_coverage_of_a_changed_test_scopes_the_tiers(tmp_path):
+    # A changed test file counts as touching every source file it covers, so the matrix pulls the
+    # critical tier (and its R4) into play even though only a test file changed.
+    _base_repo(tmp_path, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                          "pkg/critical.py": "def f():\n    return 1\n"})
+    (tmp_path / "tests" / "test_a.py").write_text(
+        "from pkg.critical import f\n\n\ndef test_a():\n    assert f() == 1\n")
+    _commit(tmp_path, "make the test cover the critical module")
+    tiers = [{"name": "critical", "paths": ["pkg/*"], "rigor": "R4"}]
+    m = {"schema": "test-matrix/1", "tests": {"tests/test_a.py::test_a": {}},
+         "coverage": {"tests/test_a.py::test_a": ["pkg/critical.py:1"]}, "mutants": {}}
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(m))
+    res = gate.run({"rigor": "R3", "adequacy": {"tier": tiers}}, root=str(tmp_path),
+                   base="main", matrix_path=str(path))
+    assert res["info"]["rigor"] == "R4 Strict"
+    # The tier matcher itself: first match wins, and a path outside every tier has none.
+    assert gate._tier_of("pkg/critical.py", tiers)["name"] == "critical"
+    assert gate._tier_of("other/x.py", tiers) is None
 
 
 def test_edit_hook_judges_only_the_tests_an_edit_touched(tmp_path):

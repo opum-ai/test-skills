@@ -127,6 +127,17 @@ def test_protection_is_by_exact_id_from_the_protected_file_not_by_name(tmp_path,
         mx.load(write(tmp_path, "bad-schema.json", {"schema": "other/9", "tests": {}}))
 
 
+def test_obligations_ignores_coverage_for_a_test_not_in_the_matrix():
+    # Coverage is only an obligation for a test the suite actually runs: a collector may record
+    # lines for a deselected or deleted id, and counting those would inflate the reduced suite's
+    # obligations with lines nothing retained can discharge.
+    m = {"tests": {"tests.test_a::test_a": {}},
+         "coverage": {"tests.test_a::test_a": ["pkg/x.py:1"], "tests.test_a::deselected": ["pkg/x.py:2"]},
+         "mutants": {}}
+    obl = mx.obligations(m, lines=True)
+    assert obl == {"line:pkg/x.py:1": {"tests.test_a::test_a"}}
+
+
 def test_a_change_cannot_triage_its_own_survivors_without_approval(tmp_path, monkeypatch):
     import subprocess
     g = lambda *a: subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *a], cwd=tmp_path,  # noqa: E731

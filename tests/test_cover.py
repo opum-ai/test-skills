@@ -39,15 +39,32 @@ def test_checker_rejects_a_certificate_missing_any_witness(sets):
     dropped = sorted(witness)[0]
     broken = {o: w for o, w in witness.items() if o != dropped}
     assert cover.check_certificate(killers, set(keep), broken) == [f"{dropped}: no witness"]
+    # The other two broken shapes, and the certificate's own missing list: a minimum cover is
+    # minimal, so dropping a keeper uncovers something; an empty keep retains no witness; and a
+    # witness that is retained but does not discharge the obligation is still a violation.
+    assume(keep)
+    _, missing = cover.certificate(inst, keep[:-1])
+    assert missing
+    assert cover.check_certificate(killers, set(), witness) == [
+        f"{o}: witness {witness[o]} is not retained" for o in sorted(killers) if killers[o] and o in witness]
+    ghost = {o: "ghost" for o in witness}
+    assert cover.check_certificate(killers, set(keep) | {"ghost"}, ghost) == [
+        f"{o}: witness ghost does not discharge it" if o in witness else f"{o}: no witness"
+        for o in sorted(killers) if killers[o]]
 
 
 def test_removal_reasons_on_a_known_instance():
-    inst, _ = build([{0, 1, 2}, {0, 1}, {0, 1, 2}, set(), {3}])
+    # t5 overlaps the kept set on both sides without duplicating, subsuming or covering nothing,
+    # so it is the jointly-covered arm: no single keeper explains why it went. t6 is kept for
+    # obligation 4 and shares nothing with t5, so it must NOT appear among the tests that jointly
+    # cover it -- that is the difference between an overlap and a mere non-empty union.
+    inst, _ = build([{0, 1, 2}, {0, 1}, {0, 1, 2}, set(), {3}, {0, 3}, {4}])
     res = cover.solve(inst)
     reasons = cover.classify_removed(inst, res["keep"])
-    assert sorted(res["keep"]) == ["t0", "t4"]
+    assert sorted(res["keep"]) == ["t0", "t4", "t6"]
     assert {t: r["reason"] for t, r in reasons.items()} == {
-        "t1": "subsumed", "t2": "duplicate", "t3": "zero-signal"}
+        "t1": "subsumed", "t2": "duplicate", "t3": "zero-signal", "t5": "jointly-covered"}
+    assert reasons["t5"]["by"] == ["t0", "t4"]
 
 
 @settings(max_examples=60, deadline=None)

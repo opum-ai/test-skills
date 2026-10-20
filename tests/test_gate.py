@@ -55,6 +55,9 @@ def test_rigor_levels(repo, monkeypatch, level, env, expected_rules, passed):
         monkeypatch.setenv(k, v)
     res = gate.run(gate.mini_toml(POLICY.format(level=level)), root=str(repo), base="main")
     assert {v["rule"] for v in res["violations"]} == expected_rules and res["passed"] is passed
+    # An unrecognised level is a usage error, not something silently normalised to a default.
+    with pytest.raises(SystemExit):
+        rigor.norm("R9")
 
 
 def test_a_trailer_raises_rigor_but_cannot_lower_it():
@@ -79,6 +82,14 @@ def test_mini_toml_parses_the_shipped_template_on_every_supported_python():
     assert got["adequacy"]["tier"][0] == {"name": "critical", "paths": ["a/**"], "rigor": "R4", "min_mutation_score": 0.8}
     assert "sleep" in got["admission"]["forbid_smells"] and got["flaky"]["max_skipped"] == 0
     assert tomllib is None or got == tomllib.loads(text)
+    # Nested values, which the shipped template has none of: a list inside a list exercises the
+    # depth counter, a table exercises the value parser's dict arm, and a bare word is a usage
+    # error rather than something silently parsed.
+    nested = gate.mini_toml('a = [["x"], ["y"]]\nb = {k = 1, j = 2}\n')
+    assert nested == {"a": [["x"], ["y"]], "b": {"k": 1, "j": 2}}
+    assert tomllib is None or nested == tomllib.loads('a = [["x"], ["y"]]\nb = {k = 1, j = 2}\n')
+    with pytest.raises(SystemExit):
+        gate.mini_toml("bad = nonsense\n")
 
 
 def test_unknown_base_ref_is_a_usage_error(repo):

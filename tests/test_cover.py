@@ -92,6 +92,22 @@ def odd_cycle(n):
     return cover.Instance(sorted({o for s in tests.values() for o in s}), tests, {t: 1.0 for t in tests})
 
 
+def test_a_redundant_greedy_pick_is_pruned_from_a_starved_cover():
+    # No test is essential and none dominates another, so the reductions leave all four and greedy
+    # runs: it takes `a` first (cost per obligation 1.0, the best ratio), then `d`, then `b`. `b`
+    # covers everything `a` did, so `a` is redundant and pruning must drop it. A starved search
+    # returns its greedy seed unchanged, so here the prune is load-bearing twice over: the loop's
+    # accumulation over the OTHER picks decides `a` is covered without it, and the removal is what
+    # actually shrinks the seed. Break either and the kept cover carries `a` (or, with the
+    # accumulation inverted, drops `b` and leaves an obligation uncovered).
+    inst = cover.Instance(["o0", "o1", "o2", "o3"],
+                          {"a": {"o0", "o1"}, "b": {"o0", "o1", "o2"}, "c": {"o2", "o3"}, "d": {"o3"}},
+                          {"a": 2.0, "b": 3.1, "c": 4.0, "d": 1.0})
+    res = cover.solve(inst, node_budget=1)
+    assert cover.certificate(inst, res["keep"])[1] == []
+    assert res["keep"] == ["b", "d"]
+
+
 @given(st.integers(1, 9).map(lambda k: 2 * k + 1))
 def test_branch_and_bound_solves_instances_the_reductions_cannot(n):
     inst = odd_cycle(n)

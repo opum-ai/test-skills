@@ -338,12 +338,34 @@ def test_a_base_tree_that_drops_its_tests_cannot_be_measured(tmp_path):
     assert res["info"]["baseline_measured"] is None
 
 
-def test_collected_ids_folds_a_class_into_the_module_part():
-    # JUnit's `classname` folds the class into the module, so a collected class-based id must
-    # fold too; a parametrized id keeps its own `::` in the name and must not be read as a class.
-    got = gate._collected_ids("tests/test_a.py::TestX::test_y\n"
-                              "tests/test_a.py::test_p[a::b]\n")
-    assert got == {"tests.test_a.TestX::test_y", "tests.test_a::test_p[a::b]"}
+def test_collected_ids_folds_a_class_into_the_module_part(tmp_path):
+    # JUnit reports a nested class as classname mod.TestOuter.TestInner, so the base's collected
+    # ids must fold at every level of nesting; a parametrized name keeps its own `::` inside the
+    # brackets and must not be folded into the module. Either mistake leaves the measurement and
+    # the run with no ids in common, and a correct baseline is refused as stale.
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_n.py").write_text(
+        "class TestOuter:\n    class TestInner:\n        def test_z(self):\n            assert 1 == 1\n")
+    (tmp_path / "tests" / "test_p.py").write_text(
+        "import pytest\n\n\n@pytest.mark.parametrize(\"x\", [\"a::b\"])\ndef test_p(x):\n"
+        "    assert x == \"a::b\"\n")
+    git(tmp_path, "init", "-q", "-b", "main")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-qm", "base")
+    git(tmp_path, "checkout", "-qb", "pr")
+    (tmp_path / "test-policy.toml").write_text(POLICY.format(level="R3"))
+    (tmp_path / ".test-baseline.json").write_text(json.dumps(
+        {"tests": 2, "test_ids": ["tests.test_n.TestOuter.TestInner::test_z",
+                                  "tests.test_p::test_p[a::b]"]}))
+    junit = tmp_path / "r.xml"
+    junit.write_text("<testsuite>"
+                     "<testcase classname='tests.test_n.TestOuter.TestInner' name='test_z'/>"
+                     "<testcase classname='tests.test_p' name='test_p[a::b]'/>"
+                     "</testsuite>")
+    res = gate.run(gate.mini_toml(POLICY.format(level="R3")), root=str(tmp_path),
+                   junit=[str(junit)], base="main")
+    assert res["info"]["baseline_measured"] == 2
+    assert res["violations"] == []
 
 
 def test_matrix_coverage_of_a_changed_test_scopes_the_tiers(tmp_path):

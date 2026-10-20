@@ -9,7 +9,7 @@ source = ["skills/test-audit/scripts/tmx"]                 # source roots; used 
 test_roots = ["tests"]               # evals/fixtures holds deliberately bloated suites
 
 [budget]                            # Article II
-max_tests = 84           # total ceiling; amendment 4 (TS-27/DEC-209): the stale-baseline refusal proved both ways, 5 collected cases
+max_tests = 95           # total ceiling; amendment 5 (TS-24/DEC-195 (8)): eleven measured cases, each with a unique kill
 max_suite_seconds = 60 # PR-tier wall time (JUnit sum)
 max_new_tests_per_pr = 8            # more needs a `Test-Budget: <reason>` trailer
 

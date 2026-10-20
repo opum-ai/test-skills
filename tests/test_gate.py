@@ -305,6 +305,26 @@ def test_a_new_quarantine_entry_without_owner_and_issue_is_flagged(tmp_path):
     res = gate.run({"rigor": "R3"}, root=str(tmp_path), base="main")
     assert [v["rule"] for v in res["violations"]] == ["quarantine_entry"]
     assert "without an owner and an issue link" in res["violations"][0]["message"]
+    # A base copy that will not parse is not a violation: it reads as empty, so every head entry
+    # counts as newly added and the report names the unreadable file (DEC-213 (a2)).
+    bad = tmp_path / "corrupt-base"
+    bad.mkdir()
+    _base_repo(bad, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                     ".test-quarantine.json": "{not json"})
+    entry = [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat(),
+              "owner": "alice", "issue": "https://example.invalid/1"}]
+    (bad / ".test-quarantine.json").write_text(json.dumps(entry))
+    _commit(bad, "quarantine one against a corrupt base")
+    res = gate.run({"rigor": "R3"}, root=str(bad), base="main")
+    assert res["violations"] == []
+    assert any(".test-quarantine.json" in line and "newly added" in line
+               for line in res["info"]["unreadable_base_state_files"])
+    # Strip its justification and the same head entry is refused, so a corrupt base fails strict.
+    entry[0].pop("owner")
+    (bad / ".test-quarantine.json").write_text(json.dumps(entry))
+    _commit(bad, "drop the owner")
+    res = gate.run({"rigor": "R3"}, root=str(bad), base="main")
+    assert [v["rule"] for v in res["violations"]] == ["quarantine_entry"]
 
 
 def test_a_new_probation_entry_without_a_matrix_is_flagged(tmp_path):
@@ -321,6 +341,19 @@ def test_a_new_probation_entry_without_a_matrix_is_flagged(tmp_path):
     path.write_text(json.dumps(m))
     res = gate.run({"rigor": "R3"}, root=str(tmp_path), base="main", matrix_path=str(path))
     assert "uncertified_demotion" not in {v["rule"] for v in res["violations"]}
+    # The same entry against a base whose probation file will not parse is still uncertified:
+    # the base reads as empty, so the entry counts as newly added (DEC-213 (a2)).
+    bad = tmp_path / "corrupt-base"
+    bad.mkdir()
+    _base_repo(bad, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                     ".test-probation.json": "{not json"})
+    (bad / ".test-probation.json").write_text(json.dumps(
+        [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat()}]))
+    _commit(bad, "demote one against a corrupt base")
+    res = gate.run({"rigor": "R3"}, root=str(bad), base="main")
+    assert "uncertified_demotion" in {v["rule"] for v in res["violations"]}
+    assert any(".test-probation.json" in line and "newly added" in line
+               for line in res["info"]["unreadable_base_state_files"])
 
 
 def test_a_base_tree_that_drops_its_tests_cannot_be_measured(tmp_path):

@@ -9,7 +9,9 @@ With `--base`, that baseline is also checked against the base commit's own colle
 no longer matches fails by name, in either direction, and moves only by amendment (DEC-209).
 
 Every violation names its article. Exit 0 = pass, 1 = violations, 2 = bad policy.
-A state file that exists but cannot be parsed is a named violation, never an empty list (DEC-213).
+A state file at HEAD that exists but cannot be parsed is a named violation, never an empty list
+(DEC-213). An unparseable copy at the BASE ref is not a violation: it reads as empty, so every HEAD
+entry counts as newly added, and the report names the file (DEC-213 (a2)).
 """
 from __future__ import annotations
 
@@ -217,6 +219,21 @@ def _load_list_at(root: str, ref: str, path: str, kind: str) -> list:
         raise StateFileError(f"{ref}:{path}", kind, e) from e
 
 
+def _load_base_list(root: str, ref: str, path: str, kind: str, info: dict) -> list:
+    """The base copy, treated as empty when it will not parse (DEC-213 (a2)).
+
+    A corrupt base must not make the gate unrepairable through a PR, so it is not a violation:
+    every head entry then counts as newly added and must meet the new-entry rules, which fails
+    toward strict. The report names the file so the corruption is still visible.
+    """
+    try:
+        return _load_list_at(root, ref, path, kind)
+    except StateFileError as e:
+        info.setdefault("unreadable_base_state_files", []).append(
+            f"{e.path} ({e.kind}) cannot be parsed ({e.error}); its entries were treated as newly added")
+        return []
+
+
 def _match(path: str, globs: List[str]) -> bool:
     return any(fnmatch.fnmatch(path, g) for g in globs)
 
@@ -404,17 +421,19 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
     try:
         head_q = _load_list(os.path.join(root, qname), "quarantine")
         head_p = _load_list(os.path.join(root, pname), "probation")
-        if base:
-            base_q = _load_list_at(root, base, qname, "quarantine")
-            base_p = _load_list_at(root, base, pname, "probation")
     except StateFileError as e:
-        # DEC-213: a file the gate cannot parse is a named violation and never passes. The lists
+        # DEC-213 item 1: an unparseable HEAD copy is a named violation and never passes. The lists
         # stay empty only so the rest of the gate still runs; this violation already fails the run.
         add("XI" if e.kind == "quarantine" else "XII", "unreadable_state_file",
             f"{e.path} is the {e.kind} state file and cannot be parsed ({e.error}): the gate cannot "
             "tell a hidden test from an absent one, so it fails closed rather than reading the file "
             "as no entries (DEC-213)")
-        head_q, head_p, base_q, base_p = [], [], [], []
+        head_q, head_p = [], []
+    if base:
+        # A corrupt BASE copy is handled separately: it must not make the gate unrepairable
+        # through a PR, so it reads as empty and its entries count as newly added (DEC-213 (a2)).
+        base_q = _load_base_list(root, base, qname, "quarantine", info)
+        base_p = _load_base_list(root, base, pname, "probation", info)
     if base:
         new_q = [e for e in head_q if e.get("test") not in {x.get("test") for x in base_q}]
         new_p = [e for e in head_p if e.get("test") not in {x.get("test") for x in base_p}]

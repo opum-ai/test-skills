@@ -553,7 +553,7 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
         # listed approver: otherwise a change could declare its own weaknesses harmless.
         if base:
             rel_t = os.path.relpath(triage_path, root)
-            base_t = _git(root, "show", f"{base}:{rel_t}")
+            base_t = _from_base(root, base, rel_t) or ""
             try:
                 base_triage = json.loads(base_t) if base_t.strip() else {}
             except ValueError:
@@ -624,7 +624,7 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
             exact: Set[str] = set()
             pf = policy.get("admission", {}).get("protected_file")
             if pf:   # exact ids, from the base ref when judging a change (a PR cannot protect itself)
-                text = _git(root, "show", f"{base}:{pf}") if base else \
+                text = (_from_base(root, base, pf) or "") if base else \
                     (open(os.path.join(root, pf)).read() if os.path.exists(os.path.join(root, pf)) else "")
                 exact = {ln.strip() for ln in text.splitlines() if ln.strip() and not ln.startswith("#")}
             for t in weak:
@@ -654,8 +654,10 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
 
 
 def _from_base(root: str, base: str, rel: str) -> Optional[str]:
+    """The file as it exists at `base`, or None. `rel` is relative to `root`, and so is `./rel`: a bare
+    `base:rel` would resolve from the repo top, so a root below it would read the wrong file or none."""
     try:
-        return subprocess.run(["git", "show", f"{base}:{rel}"], cwd=root, capture_output=True, text=True,
+        return subprocess.run(["git", "show", f"{base}:./{rel}"], cwd=root, capture_output=True, text=True,
                               check=True).stdout
     except Exception:
         return None

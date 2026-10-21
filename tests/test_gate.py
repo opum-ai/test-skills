@@ -100,7 +100,7 @@ def test_unknown_base_ref_is_a_usage_error(repo):
     assert r.returncode == 2 and "not found" in r.stdout
 
 
-def test_a_change_cannot_loosen_its_own_gate(repo):
+def test_a_change_cannot_loosen_its_own_gate(repo, tmp_path, monkeypatch):
     # Base policy allows 1 new test; the PR adds 2 and rewrites the policy to allow 99.
     subprocess.run(["git", "checkout", "-q", "main"], cwd=repo, check=True)
     (repo / "test-policy.toml").write_text(POLICY.format(level="R3"))
@@ -120,6 +120,30 @@ def test_a_change_cannot_loosen_its_own_gate(repo):
     r = subprocess.run([sys.executable, TMX, "gate", "--policy", "test-policy.toml", "--junit", "r.xml", "--base", "main"],
                        cwd=repo, capture_output=True, text=True)
     assert r.returncode == 1 and "max_new_tests_per_pr" in r.stdout and '"policy_source": "base"' in r.stdout
+    # The same holds with the gate root below the repo top: the policy is read from the base there too.
+    # Without that, it reads as "missing at the base" and the change's own R1 applies (exit 0).
+    loose = tmp_path / "sub-policy"
+    loose.mkdir()
+    old = (dt.date.today() - dt.timedelta(days=60)).isoformat()
+    _base_repo(loose, {"pkg/tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                       "pkg/test-policy.toml": 'rigor = "R3"\n', "pkg/.test-quarantine.json": "[]"})
+    (loose / "pkg" / "test-policy.toml").write_text('rigor = "R1"\n')
+    (loose / "pkg" / ".test-quarantine.json").write_text(json.dumps(
+        [{"test": "t", "since": old, "owner": "o", "issue": "https://example.invalid/1"}]))
+    _commit(loose, "quarantine an old test and loosen the policy")
+    r = subprocess.run([sys.executable, TMX, "gate", "--policy", "pkg/test-policy.toml", "--root", "pkg",
+                        "--base", "main"], cwd=loose, capture_output=True, text=True)
+    assert r.returncode == 1 and "quarantine_days" in r.stdout and '"policy_source": "base"' in r.stdout
+    # With the gate root below the repo top, the triage and protected-file base reads resolve from the
+    # root. Each unchanged entry is not new (no false finding), and a same-named file at the repo top
+    # must not stand in for the root's own copy, or a change could triage or protect itself.
+    r = lambda *a: _sub_root_rules(tmp_path, *a, monkeypatch=monkeypatch)  # noqa: E731
+    keep = {"testing/survivors.json": SUB_TRIAGE}
+    assert "triage_needs_approval" not in r("triage-same", {}, keep, {})
+    assert "triage_needs_approval" in r("triage-top", keep, {}, keep)
+    prot = {"tests/protected.txt": "new_dup\n"}
+    assert "require_unique_kill" not in r("protected-same", {}, prot, {})
+    assert "require_unique_kill" in r("protected-top", prot, {}, prot)
 
 
 def _junit(path, names):
@@ -435,6 +459,41 @@ def test_collected_ids_folds_a_class_into_the_module_part(tmp_path):
                    junit=[str(junit)], base="main")
     assert res["info"]["baseline_measured"] == 2
     assert res["violations"] == []
+
+
+SUB_KEY = "src/x.py:3:cmp:< -> <="
+SUB_TRIAGE = json.dumps({SUB_KEY: {"verdict": "equivalent", "reason": "clamp"}})
+SUB_MATRIX = {"schema": "test-matrix/1", "tests": {"old": {}, "new_dup": {}}, "coverage": {},
+              "mutants": {"a": {"file": "src/x.py", "line": 1, "op": "cmp", "desc": "< -> <=",
+                                "status": "killed", "killed_by": ["old", "new_dup"]},
+                          "c": {"file": "src/x.py", "line": 3, "op": "cmp", "desc": "< -> <=",
+                                "status": "survived", "killed_by": []}}}
+
+
+def _sub_root_rules(tmp_path, name, at_top, pkg_base, pkg_head, monkeypatch):
+    """Rule names the gate reports with its root at pkg/, a subdirectory of the repo, at R4.
+
+    `at_top` files exist at the repo top on the base; `pkg_base` and `pkg_head` are under pkg/. A base
+    read that resolves from the repo top instead of the gate root finds the `at_top` copy, which is how
+    the wrong-file arms below tell the two resolutions apart.
+    """
+    repo = tmp_path / name
+    repo.mkdir()
+    files = {"pkg/src/x.py": "x = 1\n",
+             "pkg/.test-baseline.json": json.dumps({"tests": 1, "test_ids": ["old"], "id_source": "matrix"})}
+    files.update(at_top)
+    files.update({"pkg/" + k: v for k, v in pkg_base.items()})
+    _base_repo(repo, files)
+    for k, v in {"src/x.py": "x = 2\n", **pkg_head}.items():
+        (repo / "pkg" / k).parent.mkdir(parents=True, exist_ok=True)
+        (repo / "pkg" / k).write_text(v)
+    _commit(repo, "the change")
+    (repo / "m.json").write_text(json.dumps(SUB_MATRIX))
+    monkeypatch.delenv("TMX_PR_APPROVERS", raising=False)
+    policy = {"rigor": "R4", "adequacy": {"tier": [{"name": "t", "paths": ["src/*"]}]},
+              "admission": {"protected_file": "tests/protected.txt"}}
+    res = gate.run(policy, root=str(repo / "pkg"), matrix_path=str(repo / "m.json"), base="main")
+    return {v["rule"] for v in res["violations"]}
 
 
 def test_matrix_coverage_of_a_changed_test_scopes_the_tiers(tmp_path):

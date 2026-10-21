@@ -1,0 +1,11 @@
+schema_version = 1
+name = "verification"
+description = "Retrieves what counts as proof for a change here — a certificate an independent checker verifies rather than a coverage figure, the probation window before deletion, and how the skill evaluations are run and graded."
+kind = "specialist"
+max_tokens = 9000
+pinned = ["adr/0002-kill-set-certificates-not-coverage-justify-deleting-tests"]
+sources = [
+  "adr/0003-demote-before-delete-probation-tier-for-removed-tests",
+  "runbooks/run-the-skill-evaluations",
+  "adr/0004-constitution-as-prose-articles-plus-a-machine-enforced-policy",
+]

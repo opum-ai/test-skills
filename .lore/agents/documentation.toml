@@ -1,0 +1,11 @@
+schema_version = 1
+name = "documentation"
+description = "Grounds authoring in this repository's docs bundle — its entry point, the epic and the skill split, and the decisions recorded as ADRs — rather than the fleet-wide operating instructions imported into CLAUDE.md."
+kind = "specialist"
+max_tokens = 8000
+pinned = ["index"]
+sources = [
+  "epics/sustainable-test-suites-for-agentic-engineering",
+  "adr/0001-six-skills-split-by-greenfield-brownfield-ci-and-proof",
+  "adr/0004-constitution-as-prose-articles-plus-a-machine-enforced-policy",
+]

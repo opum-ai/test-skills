@@ -1,0 +1,11 @@
+schema_version = 1
+name = "implementation"
+description = "Grounds a change to the tmx engine and the six skills in what constrains it here — a stdlib-only Python 3.9+ engine over test-matrix JSON, JUnit XML and mutation reports, and the skill split that says where a behaviour belongs."
+kind = "specialist"
+max_tokens = 10000
+pinned = ["adr/0005-stdlib-engine-over-universal-interchange-formats"]
+sources = [
+  "stories/tmx-test-matrix-engine",
+  "adr/0001-six-skills-split-by-greenfield-brownfield-ci-and-proof",
+  "adr/0002-kill-set-certificates-not-coverage-justify-deleting-tests",
+]

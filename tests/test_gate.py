@@ -237,6 +237,22 @@ def _commit(tmp_path, message):
     git(tmp_path, "commit", "-qm", message)
 
 
+def _assert_corrupt_head_is_named_with_a_base(tmp_path, state_file, kind):
+    """A corrupt HEAD state file fails by name whether the base is readable or corrupt too (DEC-213)."""
+    for label, base_text in (("valid-base", "[]"), ("corrupt-base", "{not json")):
+        repo = tmp_path / f"head-{kind}-{label}"
+        repo.mkdir()
+        _base_repo(repo, {"tests/test_a.py": "def test_a():\n    assert 1 == 1\n", state_file: base_text})
+        (repo / state_file).write_text("{head not json")
+        _commit(repo, "corrupt the head copy")
+        res = gate.run({"rigor": "R3"}, root=str(repo), base="main")
+        assert [v["rule"] for v in res["violations"]] == ["unreadable_state_file"]
+        assert state_file in res["violations"][0]["message"] and kind in res["violations"][0]["message"]
+        # The base is read on its own: a corrupt base copy is named and read as empty, a valid one is not.
+        named = res["info"].get("unreadable_base_state_files", [])
+        assert [state_file in line for line in named] == ([True] if label == "corrupt-base" else [])
+
+
 def test_a_suite_slower_than_its_budget_is_flagged(tmp_path):
     # The budget compares the SUM of the report's durations. The policy also sets a per-change
     # growth limit while no baseline exists: a case with no baseline must not reach for one.
@@ -325,6 +341,7 @@ def test_a_new_quarantine_entry_without_owner_and_issue_is_flagged(tmp_path):
     _commit(bad, "drop the owner")
     res = gate.run({"rigor": "R3"}, root=str(bad), base="main")
     assert [v["rule"] for v in res["violations"]] == ["quarantine_entry"]
+    _assert_corrupt_head_is_named_with_a_base(tmp_path, ".test-quarantine.json", "quarantine")
 
 
 def test_a_new_probation_entry_without_a_matrix_is_flagged(tmp_path):
@@ -354,6 +371,13 @@ def test_a_new_probation_entry_without_a_matrix_is_flagged(tmp_path):
     assert "uncertified_demotion" in {v["rule"] for v in res["violations"]}
     assert any(".test-probation.json" in line and "newly added" in line
                for line in res["info"]["unreadable_base_state_files"])
+    # With a matrix supplied the same head is certified, so the corrupt base adds no violation and
+    # the report still names the unreadable file.
+    res = gate.run({"rigor": "R3"}, root=str(bad), base="main", matrix_path=str(path))
+    assert res["violations"] == []
+    assert any(".test-probation.json" in line and "newly added" in line
+               for line in res["info"]["unreadable_base_state_files"])
+    _assert_corrupt_head_is_named_with_a_base(tmp_path, ".test-probation.json", "probation")
     # A root below the repo top still reads the base copy of its own state file: the entry already
     # on the base is not new, and the base is not reported unreadable.
     entry = [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat()}]

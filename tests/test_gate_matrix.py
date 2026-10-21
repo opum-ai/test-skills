@@ -63,15 +63,32 @@ def test_quarantine_windows(tmp_path, level, age, rule):
     assert gate.run({"rigor": "R3"}, root=str(bad))["violations"] == []
 
     (bad / ".test-quarantine.json").write_text("{not json")
-    found = [(v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
-    assert [rule for rule, _ in found] == ["unreadable_state_file"]
-    assert ".test-quarantine.json" in found[0][1] and "quarantine" in found[0][1]
+    found = [(v["article"], v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
+    assert [(art, rule) for art, rule, _ in found] == [("XI", "unreadable_state_file")]
+    # "quarantine" alone would be satisfied by the file name, so the kind is read from its own phrase.
+    assert ".test-quarantine.json" in found[0][2] and "is the quarantine state file" in found[0][2]
 
     write(bad, ".test-quarantine.json", [])
     (bad / ".test-probation.json").write_text("{not json")
-    found = [(v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
-    assert [rule for rule, _ in found] == ["unreadable_state_file"]
-    assert ".test-probation.json" in found[0][1] and "probation" in found[0][1]
+    found = [(v["article"], v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
+    assert [(art, rule) for art, rule, _ in found] == [("XII", "unreadable_state_file")]
+    assert ".test-probation.json" in found[0][2] and "is the probation state file" in found[0][2]
+
+    # With both copies unparseable one run names both, not just the first it reaches.
+    (bad / ".test-quarantine.json").write_text("{not json")
+    found = [(v["article"], v["rule"], v["message"]) for v in gate.run({"rigor": "R3"}, root=str(bad))["violations"]]
+    assert [(art, rule) for art, rule, _ in found] == [("XI", "unreadable_state_file"), ("XII", "unreadable_state_file")]
+    assert [".test-quarantine.json" in m for _, _, m in found] == [True, False]
+    assert [".test-probation.json" in m for _, _, m in found] == [False, True]
+
+    # Recording a baseline refuses to read past an unparseable state file (DEC-213) instead of
+    # silently counting no hidden tests.
+    junit = tmp_path / "r.xml"
+    junit.write_text("<testsuite><testcase classname='t' name='n'/></testsuite>")
+    with pytest.raises(SystemExit) as refused:
+        gate.write_baseline(str(bad), str(bad / "out.json"), junit=[str(junit)])
+    assert ".test-probation.json" in str(refused.value)
+    assert not (bad / "out.json").exists()
 
 
 def test_budget_growth_needs_a_trailer_and_at_r4_an_approval(tmp_path, monkeypatch):

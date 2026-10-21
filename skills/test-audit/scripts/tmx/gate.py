@@ -214,7 +214,7 @@ def _load_list_at(root: str, ref: str, path: str, kind: str) -> list:
     if not _git(root, "ls-tree", "--name-only", ref, "--", path).strip():
         return []
     try:
-        return json.loads(_git(root, "show", f"{ref}:{path}"))
+        return json.loads(_git(root, "show", f"{ref}:./{path}"))
     except ValueError as e:
         raise StateFileError(f"{ref}:{path}", kind, e) from e
 
@@ -418,17 +418,22 @@ def run(policy: dict, root: str = ".", junit: List[str] = (), matrix_path: Optio
     qname = fl.get("quarantine_file", ".test-quarantine.json")
     pname = ".test-probation.json"
     head_q, head_p, base_q, base_p = [], [], [], []
-    try:
-        head_q = _load_list(os.path.join(root, qname), "quarantine")
-        head_p = _load_list(os.path.join(root, pname), "probation")
-    except StateFileError as e:
-        # DEC-213 item 1: an unparseable HEAD copy is a named violation and never passes. The lists
-        # stay empty only so the rest of the gate still runs; this violation already fails the run.
-        add("XI" if e.kind == "quarantine" else "XII", "unreadable_state_file",
-            f"{e.path} is the {e.kind} state file and cannot be parsed ({e.error}): the gate cannot "
-            "tell a hidden test from an absent one, so it fails closed rather than reading the file "
-            "as no entries (DEC-213)")
-        head_q, head_p = [], []
+    # Each file is loaded in its own try so a run names every unparseable head copy, not just the first.
+    for kind, name in (("quarantine", qname), ("probation", pname)):
+        try:
+            lst = _load_list(os.path.join(root, name), kind)
+        except StateFileError as e:
+            # DEC-213 item 1: an unparseable HEAD copy is a named violation and never passes. Its list
+            # stays empty only so the rest of the gate still runs; this violation already fails the run.
+            add("XI" if e.kind == "quarantine" else "XII", "unreadable_state_file",
+                f"{e.path} is the {e.kind} state file and cannot be parsed ({e.error}): the gate cannot "
+                "tell a hidden test from an absent one, so it fails closed rather than reading the file "
+                "as no entries (DEC-213)")
+            continue
+        if kind == "quarantine":
+            head_q = lst
+        else:
+            head_p = lst
     if base:
         # A corrupt BASE copy is handled separately: it must not make the gate unrepairable
         # through a PR, so it reads as empty and its entries count as newly added (DEC-213 (a2)).

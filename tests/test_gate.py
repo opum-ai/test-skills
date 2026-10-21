@@ -378,6 +378,18 @@ def test_a_new_probation_entry_without_a_matrix_is_flagged(tmp_path):
     assert any(".test-probation.json" in line and "newly added" in line
                for line in res["info"]["unreadable_base_state_files"])
     _assert_corrupt_head_is_named_with_a_base(tmp_path, ".test-probation.json", "probation")
+    # A root below the repo top still reads the base copy of its own state file: the entry already
+    # on the base is not new, and the base is not reported unreadable.
+    entry = [{"test": "tests.test_a::test_a", "since": dt.date.today().isoformat()}]
+    sub = tmp_path / "sub-root"
+    sub.mkdir()
+    _base_repo(sub, {"pkg/tests/test_a.py": "def test_a():\n    assert 1 == 1\n",
+                     "pkg/.test-probation.json": json.dumps(entry)})
+    (sub / "pkg" / "note.txt").write_text("changed on the branch")
+    _commit(sub, "touch something else")
+    res = gate.run({"rigor": "R3"}, root=str(sub / "pkg"), base="main")
+    assert "uncertified_demotion" not in {v["rule"] for v in res["violations"]}
+    assert "unreadable_base_state_files" not in res["info"]
 
 
 def test_a_base_tree_that_drops_its_tests_cannot_be_measured(tmp_path):

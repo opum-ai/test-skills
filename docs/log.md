@@ -26,3 +26,7 @@
 - 2026-09-26T10:22:01-05:00 9480522527b2961eeaefd043ca870f128390f026 Exact-id protection from base ref (closes name-glob loophole); adopt --codeowners and protected.txt; evaluation results in story and README
 - 2026-09-26T13:14:43-05:00 fab44474ec02c053072d76275cecc8831a763110 TS-14: keep benchmark and run_loop summaries in evals/benchmarks/iteration-1
 - 2026-09-26T21:36:05-05:00 9ceb8941dd16dba518e59cfb2689e115c49efe7e TS-19: plugin eval run 3 - grader keeps import mode; test-reduce must not stop after consolidation (#9)
+
+## release
+
+- 2026-10-22 v0.1.1 test-skills 0.1.1 ships the review-fix set on top of v0.1.0: TS-34 901f90b (lore agent profiles), TS-35 856292f (fail-closed state-file path), TS-37 4e13b8d (corrupt-base proof gaps) and TS-38 28bc34b (the gate reads policy and baseline from the gate root)
